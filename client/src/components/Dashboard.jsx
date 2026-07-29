@@ -71,7 +71,8 @@ export default function Dashboard({ user, onLogout }) {
 
   // Deduplication helper to prevent message doubling
   const upsertMessage = (prevMsgs, incomingMsg) => {
-    if (!incomingMsg || !incomingMsg.text) return prevMsgs;
+    if (!incomingMsg) return prevMsgs;
+    if (!incomingMsg.text && !incomingMsg.fileUrl) return prevMsgs;
 
     // 1. Check exact ID match
     const exactMatchIndex = prevMsgs.findIndex((m) => m._id === incomingMsg._id && m._id);
@@ -81,13 +82,13 @@ export default function Dashboard({ user, onLogout }) {
       return copy;
     }
 
-    // 2. Check temp ID replacement match (match by temp prefix, text, and sender)
+    // 2. Check temp ID replacement match (match by temp prefix, text/fileUrl, and sender)
     const tempMatchIndex = prevMsgs.findIndex(
       (m) =>
         typeof m._id === 'string' &&
         m._id.startsWith('temp_') &&
         m.sender === incomingMsg.sender &&
-        m.text === incomingMsg.text
+        (m.text === incomingMsg.text || (incomingMsg.fileUrl && m.fileName === incomingMsg.fileName))
     );
 
     if (tempMatchIndex !== -1) {
