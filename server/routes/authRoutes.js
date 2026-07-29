@@ -377,9 +377,12 @@ router.get('/messages/:user1/:user2', async (req, res) => {
 // @route   POST /api/auth/messages
 router.post('/messages', async (req, res) => {
   try {
-    const { sender, receiver, text, isRead } = req.body;
-    if (!sender || !receiver || !text) {
-      return res.status(400).json({ success: false, message: 'Missing fields' });
+    const { sender, receiver, text, isRead, fileUrl, fileName, fileType, fileSize } = req.body;
+    if (!sender || !receiver) {
+      return res.status(400).json({ success: false, message: 'Missing sender or receiver' });
+    }
+    if (!text && !fileUrl) {
+      return res.status(400).json({ success: false, message: 'Message must have text or a file' });
     }
 
     const isMongoConnected = mongoose.connection.readyState === 1;
@@ -389,16 +392,24 @@ router.post('/messages', async (req, res) => {
       savedMessage = await Message.create({
         sender,
         receiver,
-        text: text.trim(),
+        text: text ? text.trim() : '',
         isRead: Boolean(isRead),
+        fileUrl: fileUrl || null,
+        fileName: fileName || null,
+        fileType: fileType || null,
+        fileSize: fileSize || null,
       });
     } else {
       savedMessage = {
         _id: 'msg_' + Date.now(),
         sender,
         receiver,
-        text: text.trim(),
+        text: text ? text.trim() : '',
         isRead: Boolean(isRead),
+        fileUrl: fileUrl || null,
+        fileName: fileName || null,
+        fileType: fileType || null,
+        fileSize: fileSize || null,
         createdAt: new Date(),
       };
       memoryMessages.push(savedMessage);
@@ -409,6 +420,7 @@ router.post('/messages', async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to send message' });
   }
 });
+
 
 // @route   PUT /api/auth/messages/read
 router.put('/messages/read', async (req, res) => {

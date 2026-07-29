@@ -21,7 +21,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { fetchAllUsers, fetchConversation, postChatMessage, markMessagesAsRead } from '../services/api';
+import { fetchAllUsers, fetchConversation, postChatMessage, markMessagesAsRead, uploadFile } from '../services/api';
 
 export default function Dashboard({ user, onLogout }) {
   const [socket, setSocket] = useState(null);
@@ -39,8 +39,15 @@ export default function Dashboard({ user, onLogout }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
+  // File upload states
+  const [selectedFile, setSelectedFile] = useState(null);       // { file, previewUrl, name, type, size }
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   const messagesContainerRef = useRef(null);
   const isUserAtBottomRef = useRef(true);
+  const messageInputRef = useRef(null);
 
   // Refs for tracking current state inside socket callbacks
   const selectedUserRef = useRef(selectedUser);
@@ -296,6 +303,10 @@ export default function Dashboard({ user, onLogout }) {
       if (isInitialLoad) {
         isUserAtBottomRef.current = true;
         setTimeout(scrollToBottomInstant, 30);
+        // Auto-focus message input when user is selected
+        setTimeout(() => {
+          if (messageInputRef.current) messageInputRef.current.focus();
+        }, 100);
       }
     };
 
@@ -319,24 +330,43 @@ export default function Dashboard({ user, onLogout }) {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessageText.trim() || !selectedUser || !currentUserId) return;
+    if (!newMessageText.trim() && !selectedFile) return;
+    if (!selectedUser || !currentUserId) return;
 
     const textToSend = newMessageText.trim();
     setNewMessageText('');
+
+    let fileData = null;
+
+    // Upload file first if one is selected
+    if (selectedFile) {
+      try {
+        setIsUploading(true);
+        fileData = await uploadFile(selectedFile.file);
+        setSelectedFile(null);
+      } catch (err) {
+        console.error('File upload failed:', err);
+        setIsUploading(false);
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
 
     const msgData = {
       _id: 'temp_' + Date.now(),
       sender: currentUserId,
       receiver: selectedUser._id,
-      text: textToSend,
+      text: textToSend || (fileData ? '' : ''),
       isRead: false,
       createdAt: new Date().toISOString(),
+      ...(fileData || {}),
     };
 
     setMessages((prev) => [...prev, msgData]);
     setLastMessages((prev) => ({
       ...prev,
-      [selectedUser._id]: textToSend,
+      [selectedUser._id]: textToSend || (fileData ? `📎 ${fileData.fileName}` : ''),
     }));
 
     isUserAtBottomRef.current = true;
@@ -346,19 +376,39 @@ export default function Dashboard({ user, onLogout }) {
       socket.emit('send_message', {
         sender: currentUserId,
         receiver: selectedUser._id,
-        text: textToSend,
+        text: textToSend || (fileData ? `📎 ${fileData.fileName}` : ''),
         createdAt: new Date().toISOString(),
       });
     }
 
     try {
-      const res = await postChatMessage(currentUserId, selectedUser._id, textToSend, false);
+      const res = await postChatMessage(currentUserId, selectedUser._id, textToSend, false, fileData);
       if (res && res.message) {
         setMessages((prevMsgs) => upsertMessage(prevMsgs, res.message));
       }
     } catch (err) {
       console.error('Failed to save message:', err);
     }
+  };
+
+  const handleFileSelect = (file) => {
+    if (!file) return;
+    const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+    setSelectedFile({ file, previewUrl, name: file.name, type: file.type, size: file.size });
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const isUserOnline = (userId) => onlineUsers.includes(userId);
@@ -409,24 +459,61 @@ export default function Dashboard({ user, onLogout }) {
         >
           {!sidebarCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-              <div
+
+              {/* Speech Bubble Icon with "N" */}
+              <div style={{ position: 'relative', flexShrink: 0, width: '46px', height: '48px' }}>
+                {/* Bubble body */}
+                <div
+                  style={{
+                    width: '46px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    background: '#0f1e3d',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                  }}
+                >
+                  <span
+                    style={{
+                      color: '#ffffff',
+                      fontSize: '1.15rem',
+                      fontFamily: "'Permanent Marker', cursive",
+                      lineHeight: 1,
+                      marginTop: '2px',
+                    }}
+                  >
+                    N
+                  </span>
+                </div>
+                {/* Bubble tail - overlaps bubble bottom-left, no gap */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '28px',
+                    left: '6px',
+                    width: '0',
+                    height: '0',
+                    borderRight: '12px solid transparent',
+                    borderLeft: '0px solid transparent',
+                    borderTop: '14px solid #0f1e3d',
+                  }}
+                />
+              </div>
+
+              {/* NIRA CHAT brushstroke text */}
+              <span
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  fontFamily: "'Permanent Marker', cursive",
+                  fontSize: '1.25rem',
+                  color: '#0f1e3d',
+                  letterSpacing: '1px',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                <MessageSquare size={18} />
-              </div>
-              <h3 className="font-extrabold" style={{ fontSize: '1.15rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Nira Chat
-              </h3>
+                NIRA CHAT
+              </span>
             </div>
           )}
 
@@ -857,21 +944,37 @@ export default function Dashboard({ user, onLogout }) {
               </div>
             </div>
 
-            {/* Chat Message Stream */}
+            {/* Chat Message Stream - with drag-and-drop */}
             <div
               ref={messagesContainerRef}
               onScroll={handleScroll}
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+              onDragLeave={() => setIsDraggingOver(false)}
+              onDrop={handleDrop}
               style={{
                 flex: 1,
                 minHeight: 0,
                 padding: '28px 32px',
                 overflowY: 'auto',
-                background: '#f8fafc',
+                background: isDraggingOver ? 'rgba(79,70,229,0.06)' : '#f8fafc',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '14px',
+                border: isDraggingOver ? '2px dashed #4f46e5' : '2px dashed transparent',
+                transition: 'all 0.2s',
+                position: 'relative',
               }}
             >
+              {isDraggingOver && (
+                <div style={{
+                  position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
+                  zIndex: 10,
+                }}>
+                  <span style={{ fontSize: '3rem' }}>📂</span>
+                  <span style={{ fontWeight: 800, color: '#4f46e5', fontSize: '1.1rem', marginTop: '8px' }}>Drop file here to send</span>
+                </div>
+              )}
               {loadingChat ? (
                 <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b' }}>
                   <div className="spinner" style={{ margin: '0 auto 10px auto', borderColor: '#4f46e5', borderTopColor: 'transparent' }}></div>
@@ -906,7 +1009,7 @@ export default function Dashboard({ user, onLogout }) {
                     >
                       <div
                         style={{
-                          padding: '14px 20px',
+                          padding: msg.fileType === 'image' ? '6px' : '14px 20px',
                           borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
                           background: isMine
                             ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
@@ -920,9 +1023,46 @@ export default function Dashboard({ user, onLogout }) {
                           fontWeight: '600',
                           lineHeight: '1.48',
                           wordBreak: 'break-word',
+                          maxWidth: '320px',
+                          overflow: 'hidden',
                         }}
                       >
-                        {msg.text}
+                        {/* File rendering */}
+                        {msg.fileUrl && msg.fileType === 'image' && (
+                          <img
+                            src={msg.fileUrl}
+                            alt={msg.fileName}
+                            style={{ width: '100%', maxWidth: '280px', borderRadius: '14px', display: 'block', cursor: 'pointer' }}
+                            onClick={() => window.open(msg.fileUrl, '_blank')}
+                          />
+                        )}
+                        {msg.fileUrl && msg.fileType === 'video' && (
+                          <video controls style={{ width: '100%', maxWidth: '280px', borderRadius: '14px' }}>
+                            <source src={msg.fileUrl} />
+                          </video>
+                        )}
+                        {msg.fileUrl && msg.fileType === 'audio' && (
+                          <audio controls style={{ width: '100%', maxWidth: '260px', marginBottom: msg.text ? '8px' : 0 }}>
+                            <source src={msg.fileUrl} />
+                          </audio>
+                        )}
+                        {msg.fileUrl && msg.fileType === 'document' && (
+                          <a
+                            href={msg.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none',
+                              color: isMine ? '#ffffff' : '#4f46e5', fontWeight: 700,
+                              background: isMine ? 'rgba(255,255,255,0.1)' : 'rgba(79,70,229,0.07)',
+                              padding: '10px 14px', borderRadius: '10px', marginBottom: msg.text ? '8px' : 0,
+                            }}
+                          >
+                            <span style={{ fontSize: '1.5rem' }}>📄</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.fileName}</span>
+                          </a>
+                        )}
+                        {msg.text && <span>{msg.text}</span>}
                       </div>
 
                       {/* Real Read Receipt */}
@@ -959,41 +1099,112 @@ export default function Dashboard({ user, onLogout }) {
             </div>
 
             {/* Message Input Box */}
-            <form
-              onSubmit={handleSendMessage}
-              style={{
-                padding: '20px 28px',
-                borderTop: '1px solid #e2e8f0',
-                background: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                flexShrink: 0,
-              }}
-            >
+            <div style={{ flexShrink: 0, background: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+
+              {/* Hidden file input */}
               <input
-                type="text"
-                className="form-input font-semibold"
-                style={{ paddingLeft: '18px', flex: 1, height: '48px', fontSize: '0.98rem' }}
-                placeholder={`Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
-                value={newMessageText}
-                onChange={(e) => setNewMessageText(e.target.value)}
+                ref={fileInputRef}
+                type="file"
+                style={{ display: 'none' }}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
+                onChange={(e) => handleFileSelect(e.target.files[0])}
               />
-              <button
-                type="submit"
-                className="btn-primary font-extrabold"
+
+              {/* File preview bar */}
+              {selectedFile && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '10px 28px', background: 'rgba(79,70,229,0.06)',
+                  borderBottom: '1px solid #e2e8f0',
+                }}>
+                  {selectedFile.previewUrl ? (
+                    <img src={selectedFile.previewUrl} alt="preview" style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: '2rem' }}>📄</span>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedFile.name}</div>
+                    <div style={{ fontSize: '0.76rem', color: '#64748b' }}>{formatFileSize(selectedFile.size)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px', borderRadius: '6px' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              )}
+
+              <form
+                onSubmit={handleSendMessage}
                 style={{
-                  width: 'auto',
-                  padding: '14px 28px',
-                  marginTop: 0,
-                  borderRadius: '14px',
-                  fontSize: '0.98rem',
+                  padding: '16px 28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
                 }}
-                disabled={!newMessageText.trim()}
               >
-                <Send size={18} /> Send
-              </button>
-            </form>
+                {/* + button to browse files */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                  title="Attach file"
+                  style={{
+                    width: '44px', height: '44px', borderRadius: '12px', border: '2px solid #e2e8f0',
+                    background: '#f8fafc', color: '#4f46e5', fontSize: '1.5rem', fontWeight: 900,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', flexShrink: 0, transition: 'all 0.18s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#ede9fe'; e.currentTarget.style.borderColor = '#4f46e5'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                >+</button>
+
+                <input
+                  ref={messageInputRef}
+                  type="text"
+                  className="form-input font-semibold"
+                  style={{ paddingLeft: '18px', flex: 1, height: '48px', fontSize: '0.98rem' }}
+                  placeholder={`Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
+                  value={newMessageText}
+                  onChange={(e) => setNewMessageText(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="btn-primary font-extrabold"
+                  style={{
+                    width: 'auto',
+                    padding: '14px 28px',
+                    marginTop: 0,
+                    borderRadius: '14px',
+                    fontSize: '0.98rem',
+                  }}
+                  disabled={isUploading || (!newMessageText.trim() && !selectedFile)}
+                >
+                {/* Nira Chat N bubble icon */}
+                 <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', marginRight: '6px', flexShrink: 0 }}>
+                   {/* Bubble body */}
+                   <span style={{
+                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                     width: '24px', height: '20px', borderRadius: '50%',
+                     background: '#ffffff',
+                     position: 'absolute', top: 0, left: 0,
+                   }}>
+                     <span style={{ color: '#4f46e5', fontSize: '0.72rem', fontFamily: "'Permanent Marker', cursive", lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', textAlign: 'center' }}>N</span>
+                   </span>
+                   {/* Bubble tail */}
+                   <span style={{
+                     position: 'absolute', top: '16px', left: '3px',
+                     width: 0, height: 0,
+                     borderRight: '6px solid transparent',
+                     borderLeft: '0',
+                     borderTop: '6px solid #ffffff',
+                   }} />
+                 </span>
+                 {isUploading ? 'Uploading...' : 'Send'}
+                </button>
+              </form>
+            </div>
           </>
         ) : (
           /* Empty Chat State */

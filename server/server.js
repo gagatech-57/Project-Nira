@@ -7,6 +7,9 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const Message = require('./models/Message');
 const User = require('./models/User');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 dotenv.config();
 
@@ -21,9 +24,47 @@ const io = new Server(server, {
   },
 });
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+// Multer storage config
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + '_' + Math.round(Math.random() * 1e6);
+    cb(null, unique + path.extname(file.originalname));
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(uploadsDir));
+
+// File upload endpoint
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const mimeType = req.file.mimetype;
+  let fileType = 'document';
+  if (mimeType.startsWith('image/')) fileType = 'image';
+  else if (mimeType.startsWith('video/')) fileType = 'video';
+  else if (mimeType.startsWith('audio/')) fileType = 'audio';
+
+  res.json({
+    fileUrl: `/uploads/${req.file.filename}`,
+    fileName: req.file.originalname,
+    fileType,
+    fileSize: req.file.size,
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -14,13 +14,18 @@ const messageSchema = new mongoose.Schema(
     },
     text: {
       type: String,
-      required: true,
+      default: '',
       trim: true,
     },
     isRead: {
       type: Boolean,
       default: false,
     },
+    // File attachment fields
+    fileUrl: { type: String, default: null },
+    fileName: { type: String, default: null },
+    fileType: { type: String, default: null },  // 'image', 'video', 'document', etc.
+    fileSize: { type: Number, default: null },   // bytes
   },
   {
     timestamps: true,
@@ -28,3 +33,4 @@ const messageSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Message', messageSchema);
+
