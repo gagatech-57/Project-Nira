@@ -200,7 +200,8 @@ export default function Dashboard({ user, onLogout }) {
   useEffect(() => {
     if (!currentUserId) return;
 
-    const newSocket = io('http://localhost:5000');
+    const socketServerUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin;
+    const newSocket = io(socketServerUrl);
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
