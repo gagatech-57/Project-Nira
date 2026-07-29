@@ -396,10 +396,10 @@ export default function Dashboard({ user, onLogout }) {
           overflow: 'hidden',
         }}
       >
-        {/* Top Header: Larger Font Size for Current User Name */}
+        {/* Top Header: Only Nira Chat branding */}
         <div
           style={{
-            padding: sidebarCollapsed ? '16px 8px' : '20px 18px',
+            padding: sidebarCollapsed ? '16px 8px' : '18px 18px',
             borderBottom: '1px solid #e2e8f0',
             background: '#ffffff',
             display: 'flex',
@@ -408,38 +408,31 @@ export default function Dashboard({ user, onLogout }) {
           }}
         >
           {!sidebarCollapsed && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
               <div
                 style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
                   background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
                   color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontWeight: '900',
-                  fontSize: '1.3rem',
                   flexShrink: 0,
                 }}
               >
-                {currentUserName.charAt(0).toUpperCase()}
+                <MessageSquare size={18} />
               </div>
-              <div style={{ minWidth: 0 }}>
-                {/* LARGER FONT SIZE FOR NAME */}
-                <h3 className="font-extrabold" style={{ fontSize: '1.2rem', color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {currentUserName}
-                </h3>
-                <p style={{ fontSize: '0.9rem', color: '#4f46e5', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
-                  @{currentUserHandle}
-                </p>
-              </div>
+              <h3 className="font-extrabold" style={{ fontSize: '1.15rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Nira Chat
+              </h3>
             </div>
           )}
 
           {/* Top Toggle Sidebar Button */}
           <button
+
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
             style={{
