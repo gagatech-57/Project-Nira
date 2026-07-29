@@ -169,8 +169,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', async (data) => {
-    const { sender, receiver, text, createdAt, _id } = data;
-    if (!sender || !receiver || !text) return;
+    const { sender, receiver, text, createdAt, _id, fileUrl, fileName, fileType, fileSize } = data;
+    if (!sender || !receiver) return;
+    if (!text && !fileUrl) return;
 
     const senderStr = sender.toString();
     const receiverStr = receiver.toString();
@@ -182,9 +183,13 @@ io.on('connection', (socket) => {
       _id: _id || 'msg_' + Date.now(),
       sender: senderStr,
       receiver: receiverStr,
-      text: text.trim(),
+      text: text ? text.trim() : '',
       isRead: isRecipientViewingChat,
       createdAt: createdAt || new Date().toISOString(),
+      fileUrl: fileUrl || null,
+      fileName: fileName || null,
+      fileType: fileType || null,
+      fileSize: fileSize || null,
     };
 
     console.log(`💬 Message sent from ${senderStr} to ${receiverStr}`);

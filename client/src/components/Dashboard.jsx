@@ -334,16 +334,17 @@ export default function Dashboard({ user, onLogout }) {
     if (!selectedUser || !currentUserId) return;
 
     const textToSend = newMessageText.trim();
+    const fileToUpload = selectedFile; // copy to local variable
     setNewMessageText('');
+    setSelectedFile(null);
 
     let fileData = null;
 
     // Upload file first if one is selected
-    if (selectedFile) {
+    if (fileToUpload) {
       try {
         setIsUploading(true);
-        fileData = await uploadFile(selectedFile.file);
-        setSelectedFile(null);
+        fileData = await uploadFile(fileToUpload.file);
       } catch (err) {
         console.error('File upload failed:', err);
         setIsUploading(false);
@@ -357,12 +358,13 @@ export default function Dashboard({ user, onLogout }) {
       _id: 'temp_' + Date.now(),
       sender: currentUserId,
       receiver: selectedUser._id,
-      text: textToSend || (fileData ? '' : ''),
+      text: textToSend || '',
       isRead: false,
       createdAt: new Date().toISOString(),
       ...(fileData || {}),
     };
 
+    // Show message immediately in UI
     setMessages((prev) => [...prev, msgData]);
     setLastMessages((prev) => ({
       ...prev,
@@ -378,13 +380,20 @@ export default function Dashboard({ user, onLogout }) {
         receiver: selectedUser._id,
         text: textToSend || (fileData ? `📎 ${fileData.fileName}` : ''),
         createdAt: new Date().toISOString(),
+        fileUrl: fileData ? fileData.fileUrl : null,
+        fileName: fileData ? fileData.fileName : null,
+        fileType: fileData ? fileData.fileType : null,
+        fileSize: fileData ? fileData.fileSize : null,
       });
     }
 
     try {
       const res = await postChatMessage(currentUserId, selectedUser._id, textToSend, false, fileData);
-      if (res && res.message) {
-        setMessages((prevMsgs) => upsertMessage(prevMsgs, res.message));
+      if (res) {
+        // Replace temp message with real db message
+        setMessages((prevMsgs) =>
+          prevMsgs.map((m) => (m._id === msgData._id ? { ...res, ...(fileData || {}) } : m))
+        );
       }
     } catch (err) {
       console.error('Failed to save message:', err);
