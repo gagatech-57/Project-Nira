@@ -39,9 +39,9 @@ const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
     xmlns="http://www.w3.org/2000/svg"
     style={{ color, flexShrink: 0 }}
   >
-    <path d="M5 6H17" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+    <path d="M4 6H14" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
     <path d="M4 12H20" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
-    <path d="M5 18H17" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+    <path d="M4 18H14" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
   </svg>
 );
 
