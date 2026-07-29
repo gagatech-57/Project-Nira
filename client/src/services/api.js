@@ -1,4 +1,30 @@
-const API_BASE_URL = '/api/auth';
+// Dynamic Backend Base URL
+const getBackendBase = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  }
+  // Local development fallback
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return '';
+  }
+  // Production fallback to live Render backend
+  return 'https://project-nira-1.onrender.com';
+};
+
+const BACKEND_BASE = getBackendBase();
+const API_BASE_URL = `${BACKEND_BASE}/api/auth`;
+
+const safeJsonParse = async (response) => {
+  const text = await response.text();
+  if (!text) {
+    throw new Error('Server returned an empty response. Please try again.');
+  }
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    throw new Error('Backend server is connecting. Please wait 5 seconds and try again.');
+  }
+};
 
 export const registerUser = async (userData) => {
   try {
@@ -7,7 +33,7 @@ export const registerUser = async (userData) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     });
-    const data = await response.json();
+    const data = await safeJsonParse(response);
     if (!response.ok) throw new Error(data.message || 'Registration failed');
     return data;
   } catch (error) { throw error; }
@@ -23,7 +49,7 @@ export const loginUser = async (credentials) => {
         password: credentials.password,
       }),
     });
-    const data = await response.json();
+    const data = await safeJsonParse(response);
     if (!response.ok) throw new Error(data.message || 'Login failed');
     return data;
   } catch (error) { throw error; }
@@ -32,7 +58,7 @@ export const loginUser = async (credentials) => {
 export const fetchAllUsers = async (query = '') => {
   try {
     const response = await fetch(`${API_BASE_URL}/users?q=${encodeURIComponent(query)}`);
-    const data = await response.json();
+    const data = await safeJsonParse(response);
     return data.users || [];
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -43,7 +69,7 @@ export const fetchAllUsers = async (query = '') => {
 export const fetchConversation = async (user1Id, user2Id) => {
   try {
     const response = await fetch(`${API_BASE_URL}/messages/${user1Id}/${user2Id}`);
-    const data = await response.json();
+    const data = await safeJsonParse(response);
     return data.messages || [];
   } catch (error) {
     console.error('Error fetching conversation:', error);
@@ -65,7 +91,7 @@ export const postChatMessage = async (sender, receiver, text, isRead = false, fi
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    const data = await response.json();
+    const data = await safeJsonParse(response);
     return data.message;
   } catch (error) {
     console.error('Error sending chat message:', error);
@@ -76,9 +102,9 @@ export const postChatMessage = async (sender, receiver, text, isRead = false, fi
 export const uploadFile = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await fetch('/api/upload', { method: 'POST', body: formData });
+  const response = await fetch(`${BACKEND_BASE}/api/upload`, { method: 'POST', body: formData });
   if (!response.ok) throw new Error('Upload failed');
-  return await response.json();
+  return await safeJsonParse(response);
 };
 
 export const markMessagesAsRead = async (readerId, senderId) => {
@@ -88,7 +114,7 @@ export const markMessagesAsRead = async (readerId, senderId) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ readerId, senderId }),
     });
-    return await response.json();
+    return await safeJsonParse(response);
   } catch (error) {
     console.error('Error marking read status:', error);
   }
@@ -102,11 +128,11 @@ export const editChatMessage = async (messageId, sender, text) => {
       body: JSON.stringify({ sender, text }),
     });
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
+      const errData = await safeJsonParse(response).catch(() => ({}));
       console.error('Edit message endpoint returned error:', response.status, errData);
       return null;
     }
-    return await response.json();
+    return await safeJsonParse(response);
   } catch (error) {
     console.error('Error editing message:', error);
   }
@@ -120,11 +146,11 @@ export const deleteChatMessage = async (messageId, sender) => {
       body: JSON.stringify({ sender }),
     });
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
+      const errData = await safeJsonParse(response).catch(() => ({}));
       console.error('Delete message endpoint returned error:', response.status, errData);
       return null;
     }
-    return await response.json();
+    return await safeJsonParse(response);
   } catch (error) {
     console.error('Error deleting message:', error);
   }
