@@ -8,7 +8,7 @@ const getBackendBase = () => {
     return '';
   }
   // Production fallback to live Render backend
-  return 'https://project-nira-1.onrender.com';
+  return 'https://project-nira.onrender.com';
 };
 
 const BACKEND_BASE = getBackendBase();

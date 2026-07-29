@@ -41,8 +41,16 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB max
 });
 
-// Middleware
-app.use(cors());
+// Middleware with full CORS support for Vercel and external domains
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+);
+app.options('*', cors());
+
 app.use(express.json());
 
 // Serve uploaded files statically

@@ -200,7 +200,9 @@ export default function Dashboard({ user, onLogout }) {
   useEffect(() => {
     if (!currentUserId) return;
 
-    const socketServerUrl = window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin;
+    const socketServerUrl = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:5000'
+      : (import.meta.env.VITE_API_URL || 'https://project-nira.onrender.com');
     const newSocket = io(socketServerUrl);
     setSocket(newSocket);
 
