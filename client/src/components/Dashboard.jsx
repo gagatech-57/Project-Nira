@@ -76,6 +76,7 @@ export default function Dashboard({ user, onLogout }) {
   const [activeImagePopup, setActiveImagePopup] = useState(null); // { url, name, time }
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [editingMessage, setEditingMessage] = useState(null); // { _id, text }
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null); // msg to delete
 
   const messagesContainerRef = useRef(null);
   const isUserAtBottomRef = useRef(true);
@@ -484,25 +485,31 @@ export default function Dashboard({ user, onLogout }) {
     setNewMessageText('');
   };
 
-  // Handle deleting a message
-  const handleDeleteMessage = async (msg) => {
+  // Handle open custom delete confirm alert box
+  const handleDeleteMessage = (msg) => {
     if (!msg || !msg._id || !selectedUser) return;
-    const confirmDelete = window.confirm('Are you sure you want to delete this message?');
-    if (!confirmDelete) return;
+    setDeleteConfirmMsg(msg);
+  };
+
+  // Execute actual deletion after user clicks Delete in custom alert modal
+  const confirmExecuteDelete = async () => {
+    if (!deleteConfirmMsg || !selectedUser) return;
+    const targetMsg = deleteConfirmMsg;
+    setDeleteConfirmMsg(null);
 
     // Optimistically remove from UI
-    setMessages((prev) => prev.filter((m) => m._id !== msg._id));
+    setMessages((prev) => prev.filter((m) => m._id !== targetMsg._id));
 
     // Emit socket delete event to partner
     if (socket) {
       socket.emit('delete_message', {
-        messageId: msg._id,
+        messageId: targetMsg._id,
         receiverId: selectedUser._id,
       });
     }
 
     // Call backend API
-    await deleteChatMessage(msg._id, currentUserId);
+    await deleteChatMessage(targetMsg._id, currentUserId);
   };
 
   const handleSendMessage = async (e) => {
@@ -1857,6 +1864,131 @@ export default function Dashboard({ user, onLogout }) {
                 alt={activeImagePopup.name}
                 className="image-lightbox-img"
               />
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOM DELETE CONFIRMATION ALERT MODAL BOX */}
+        {deleteConfirmMsg && (
+          <div
+            className="image-lightbox-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 10000,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+            }}
+            onClick={() => setDeleteConfirmMsg(null)}
+          >
+            <div
+              className="image-lightbox-container"
+              style={{
+                background: '#ffffff',
+                borderRadius: '24px',
+                padding: '32px 28px',
+                maxWidth: '380px',
+                width: '100%',
+                textAlign: 'center',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                border: '1px solid #f1f5f9',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                  color: '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '18px',
+                  boxShadow: '0 8px 20px rgba(239, 68, 68, 0.2)',
+                }}
+              >
+                <Trash2 size={30} strokeWidth={2.2} />
+              </div>
+
+              <h3
+                className="font-extrabold"
+                style={{
+                  fontSize: '1.35rem',
+                  color: '#0f172a',
+                  marginBottom: '8px',
+                }}
+              >
+                Delete {deleteConfirmMsg.fileUrl ? (deleteConfirmMsg.fileType === 'image' ? 'Image' : 'File') : 'Message'}?
+              </h3>
+
+              <p
+                style={{
+                  fontSize: '0.92rem',
+                  color: '#64748b',
+                  lineHeight: '1.5',
+                  marginBottom: '24px',
+                  fontWeight: 500,
+                }}
+              >
+                Are you sure you want to delete this {deleteConfirmMsg.fileUrl ? 'file attachment' : 'message'}? This action cannot be undone.
+              </p>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  width: '100%',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmMsg(null)}
+                  style={{
+                    flex: 1,
+                    padding: '12px 18px',
+                    borderRadius: '14px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontWeight: '800',
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={confirmExecuteDelete}
+                  style={{
+                    flex: 1,
+                    padding: '12px 18px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         )}
