@@ -30,6 +30,21 @@ import {
 import { io } from 'socket.io-client';
 import { fetchAllUsers, fetchConversation, postChatMessage, markMessagesAsRead, uploadFile } from '../services/api';
 
+const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ color, flexShrink: 0 }}
+  >
+    <path d="M5 6H17" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+    <path d="M4 12H20" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+    <path d="M5 18H17" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
+  </svg>
+);
+
 export default function Dashboard({ user, onLogout }) {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -866,7 +881,7 @@ export default function Dashboard({ user, onLogout }) {
               transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
-            <Menu size={18} strokeWidth={2.5} style={{ color: showSettingsPanel ? '#ffffff' : '#4f46e5' }} />
+            <MenuLinesIcon size={19} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
             {!sidebarCollapsed && 'Settings'}
           </button>
 
