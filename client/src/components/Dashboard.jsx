@@ -48,6 +48,20 @@ const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
   </svg>
 );
 
+const getFileUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const backendBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+    ? 'http://localhost:5000'
+    : (import.meta.env.VITE_API_URL || 'https://project-nira.onrender.com');
+
+  const cleanBase = backendBase.replace(/\/$/, '');
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${cleanBase}${cleanUrl}`;
+};
+
 export default function Dashboard({ user, onLogout }) {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -1392,10 +1406,10 @@ export default function Dashboard({ user, onLogout }) {
                           {msg.fileUrl && msg.fileType === 'image' && (
                             <div style={{ position: 'relative', cursor: 'pointer', overflow: 'hidden', borderRadius: '14px' }}>
                               <img
-                                src={msg.fileUrl}
+                                src={getFileUrl(msg.fileUrl)}
                                 alt={msg.fileName || 'Image'}
                                 style={{ width: '100%', maxWidth: '280px', borderRadius: '14px', display: 'block', transition: 'transform 0.2s ease' }}
-                                onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
+                                onClick={() => setActiveImagePopup({ url: getFileUrl(msg.fileUrl), name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
                               />
                               <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {isMine && (
@@ -1425,7 +1439,7 @@ export default function Dashboard({ user, onLogout }) {
                                   </span>
                                 )}
                                 <div
-                                  onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
+                                  onClick={() => setActiveImagePopup({ url: getFileUrl(msg.fileUrl), name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
                                   style={{
                                     background: 'rgba(15, 23, 42, 0.75)', color: '#ffffff',
                                     padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 700,
@@ -1439,17 +1453,17 @@ export default function Dashboard({ user, onLogout }) {
                           )}
                           {msg.fileUrl && msg.fileType === 'video' && (
                             <video controls style={{ width: '100%', maxWidth: '280px', borderRadius: '14px' }}>
-                              <source src={msg.fileUrl} />
+                              <source src={getFileUrl(msg.fileUrl)} />
                             </video>
                           )}
                           {msg.fileUrl && msg.fileType === 'audio' && (
                             <audio controls style={{ width: '100%', maxWidth: '260px', marginBottom: msg.text ? '8px' : 0 }}>
-                              <source src={msg.fileUrl} />
+                              <source src={getFileUrl(msg.fileUrl)} />
                             </audio>
                           )}
                           {msg.fileUrl && msg.fileType === 'document' && (
                             <a
-                              href={msg.fileUrl}
+                              href={getFileUrl(msg.fileUrl)}
                               target="_blank"
                               rel="noreferrer"
                               style={{
@@ -1846,7 +1860,7 @@ export default function Dashboard({ user, onLogout }) {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <a
-                    href={activeImagePopup.url}
+                    href={getFileUrl(activeImagePopup.url)}
                     target="_blank"
                     rel="noreferrer"
                     download
@@ -1888,7 +1902,7 @@ export default function Dashboard({ user, onLogout }) {
               </div>
 
               <img
-                src={activeImagePopup.url}
+                src={getFileUrl(activeImagePopup.url)}
                 alt={activeImagePopup.name}
                 className="image-lightbox-img"
               />
