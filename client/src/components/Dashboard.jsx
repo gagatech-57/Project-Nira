@@ -1443,6 +1443,35 @@ export default function Dashboard({ user, onLogout }) {
                   </button>
                 </div>
 
+                {/* Direct Quick Image Picker Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (fileInputRef.current) {
+                      fileInputRef.current.accept = 'image/*';
+                      fileInputRef.current.click();
+                    }
+                  }}
+                  title="Send Photo / Image"
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)',
+                    color: '#ec4899',
+                    boxShadow: '0 2px 8px rgba(236, 72, 153, 0.18)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <ImageIcon size={22} strokeWidth={2.2} />
+                </button>
+
                 <input
                   ref={messageInputRef}
                   type="text"
