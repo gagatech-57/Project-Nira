@@ -93,3 +93,29 @@ export const markMessagesAsRead = async (readerId, senderId) => {
     console.error('Error marking read status:', error);
   }
 };
+
+export const editChatMessage = async (messageId, sender, text) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sender, text }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error editing message:', error);
+  }
+};
+
+export const deleteChatMessage = async (messageId, sender) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/messages/${messageId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sender }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting message:', error);
+  }
+};

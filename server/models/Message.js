@@ -21,6 +21,10 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
     // File attachment fields
     fileUrl: { type: String, default: null },
     fileName: { type: String, default: null },

@@ -180,6 +180,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('edit_message', ({ messageId, receiverId, text }) => {
+    if (!messageId || !receiverId) return;
+    const rStr = receiverId.toString();
+    io.to(rStr).emit('message_edited', { messageId, text, isEdited: true });
+  });
+
+  socket.on('delete_message', ({ messageId, receiverId }) => {
+    if (!messageId || !receiverId) return;
+    const rStr = receiverId.toString();
+    io.to(rStr).emit('message_deleted', { messageId });
+  });
+
   socket.on('send_message', async (data) => {
     const { sender, receiver, text, createdAt, _id, fileUrl, fileName, fileType, fileSize } = data;
     if (!sender || !receiver) return;

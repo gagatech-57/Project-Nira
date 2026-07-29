@@ -26,9 +26,12 @@ import {
   Video,
   Music,
   Menu,
+  Pencil,
+  Trash2,
+  Edit3,
 } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { fetchAllUsers, fetchConversation, postChatMessage, markMessagesAsRead, uploadFile } from '../services/api';
+import { fetchAllUsers, fetchConversation, postChatMessage, markMessagesAsRead, uploadFile, editChatMessage, deleteChatMessage } from '../services/api';
 
 const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
   <svg
@@ -72,6 +75,7 @@ export default function Dashboard({ user, onLogout }) {
   // Image Popup Lightbox & Attachment Menu Popover States
   const [activeImagePopup, setActiveImagePopup] = useState(null); // { url, name, time }
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [editingMessage, setEditingMessage] = useState(null); // { _id, text }
 
   const messagesContainerRef = useRef(null);
   const isUserAtBottomRef = useRef(true);
@@ -301,6 +305,16 @@ export default function Dashboard({ user, onLogout }) {
       }
     });
 
+    newSocket.on('message_edited', ({ messageId, text }) => {
+      setMessages((prevMsgs) =>
+        prevMsgs.map((m) => (m._id === messageId ? { ...m, text, isEdited: true } : m))
+      );
+    });
+
+    newSocket.on('message_deleted', ({ messageId }) => {
+      setMessages((prevMsgs) => prevMsgs.filter((m) => m._id !== messageId));
+    });
+
     return () => {
       newSocket.disconnect();
     };
@@ -455,12 +469,74 @@ export default function Dashboard({ user, onLogout }) {
     };
   }, [selectedUser, currentUserId]);
 
+  // Handle start editing a message
+  const handleStartEdit = (msg) => {
+    setEditingMessage(msg);
+    setNewMessageText(msg.text || '');
+    if (messageInputRef.current) {
+      messageInputRef.current.focus();
+    }
+  };
+
+  // Handle cancel editing
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setNewMessageText('');
+  };
+
+  // Handle deleting a message
+  const handleDeleteMessage = async (msg) => {
+    if (!msg || !msg._id || !selectedUser) return;
+    const confirmDelete = window.confirm('Are you sure you want to delete this message?');
+    if (!confirmDelete) return;
+
+    // Optimistically remove from UI
+    setMessages((prev) => prev.filter((m) => m._id !== msg._id));
+
+    // Emit socket delete event to partner
+    if (socket) {
+      socket.emit('delete_message', {
+        messageId: msg._id,
+        receiverId: selectedUser._id,
+      });
+    }
+
+    // Call backend API
+    await deleteChatMessage(msg._id, currentUserId);
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessageText.trim() && !selectedFile) return;
     if (!selectedUser || !currentUserId) return;
 
     const textToSend = newMessageText.trim();
+
+    // IF EDITING AN EXISTING MESSAGE
+    if (editingMessage) {
+      const msgId = editingMessage._id;
+      setEditingMessage(null);
+      setNewMessageText('');
+
+      // Update UI optimistically
+      setMessages((prev) =>
+        prev.map((m) => (m._id === msgId ? { ...m, text: textToSend, isEdited: true } : m))
+      );
+
+      // Emit socket edit event
+      if (socket) {
+        socket.emit('edit_message', {
+          messageId: msgId,
+          receiverId: selectedUser._id,
+          text: textToSend,
+        });
+      }
+
+      // Call backend API
+      await editChatMessage(msgId, currentUserId, textToSend);
+      return;
+    }
+
     const fileToUpload = selectedFile; // copy to local variable
     setNewMessageText('');
     setSelectedFile(null);
@@ -1196,113 +1272,167 @@ export default function Dashboard({ user, onLogout }) {
                   return (
                     <div
                       key={msg._id || index}
+                      className="msg-row"
                       style={{
                         alignSelf: isMine ? 'flex-end' : 'flex-start',
-                        maxWidth: '65%',
+                        maxWidth: '75%',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: isMine ? 'flex-end' : 'flex-start',
+                        margin: '4px 0',
                       }}
                     >
-                      <div
-                        style={{
-                          padding: msg.fileType === 'image' ? '6px' : '14px 20px',
-                          borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                          background: isMine
-                            ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
-                            : '#ffffff',
-                          color: isMine ? '#ffffff' : '#0f172a',
-                          border: isMine ? 'none' : '1.5px solid #e2e8f0',
-                          boxShadow: isMine
-                            ? '0 6px 18px rgba(79, 70, 229, 0.22)'
-                            : '0 4px 10px rgba(0,0,0,0.03)',
-                          fontSize: '0.98rem',
-                          fontWeight: '600',
-                          lineHeight: '1.48',
-                          wordBreak: 'break-word',
-                          maxWidth: '320px',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {/* File rendering */}
-                        {msg.fileUrl && msg.fileType === 'image' && (
-                          <div style={{ position: 'relative', cursor: 'pointer', overflow: 'hidden', borderRadius: '14px' }}>
-                            <img
-                              src={msg.fileUrl}
-                              alt={msg.fileName || 'Image'}
-                              style={{ width: '100%', maxWidth: '280px', borderRadius: '14px', display: 'block', transition: 'transform 0.2s ease' }}
-                              onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
-                            />
-                            <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {isMine && (
-                                <span
-                                  style={{
-                                    background: isRead ? 'rgba(79, 70, 229, 0.9)' : 'rgba(15, 23, 42, 0.75)',
-                                    color: '#ffffff',
-                                    padding: '3px 8px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 800,
-                                    backdropFilter: 'blur(4px)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                  }}
-                                >
-                                  {isRead ? (
-                                    <>
-                                      <Eye size={12} /> Seen
-                                    </>
-                                  ) : recipientOnline ? (
-                                    'Delivered'
-                                  ) : (
-                                    'Sent'
-                                  )}
-                                </span>
-                              )}
-                              <div
-                                onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMine ? 'row' : 'row-reverse' }}>
+                        {/* Hover Action Controls (Edit & Delete) for sent messages */}
+                        {isMine && (
+                          <div className="msg-hover-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {msg.text && (
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(msg)}
+                                title="Edit Message"
                                 style={{
-                                  background: 'rgba(15, 23, 42, 0.75)', color: '#ffffff',
-                                  padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 700,
-                                  backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: '4px',
+                                  background: '#ede9fe',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  padding: '5px 8px',
+                                  cursor: 'pointer',
+                                  color: '#4f46e5',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: '700',
+                                  boxShadow: '0 2px 6px rgba(79,70,229,0.1)',
                                 }}
                               >
-                                <Eye size={12} /> View Full
-                              </div>
-                            </div>
+                                <Pencil size={12} /> Edit
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(msg)}
+                              title="Delete Message"
+                              style={{
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                borderRadius: '8px',
+                                padding: '5px 8px',
+                                cursor: 'pointer',
+                                color: '#ef4444',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '0.74rem',
+                                fontWeight: '700',
+                                boxShadow: '0 2px 6px rgba(239,68,68,0.1)',
+                              }}
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
                           </div>
                         )}
-                        {msg.fileUrl && msg.fileType === 'video' && (
-                          <video controls style={{ width: '100%', maxWidth: '280px', borderRadius: '14px' }}>
-                            <source src={msg.fileUrl} />
-                          </video>
-                        )}
-                        {msg.fileUrl && msg.fileType === 'audio' && (
-                          <audio controls style={{ width: '100%', maxWidth: '260px', marginBottom: msg.text ? '8px' : 0 }}>
-                            <source src={msg.fileUrl} />
-                          </audio>
-                        )}
-                        {msg.fileUrl && msg.fileType === 'document' && (
-                          <a
-                            href={msg.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none',
-                              color: isMine ? '#ffffff' : '#4f46e5', fontWeight: 700,
-                              background: isMine ? 'rgba(255,255,255,0.1)' : 'rgba(79,70,229,0.07)',
-                              padding: '10px 14px', borderRadius: '10px', marginBottom: msg.text ? '8px' : 0,
-                            }}
-                          >
-                            <span style={{ fontSize: '1.5rem' }}>📄</span>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.fileName}</span>
-                          </a>
-                        )}
-                        {msg.text && <span>{msg.text}</span>}
+
+                        <div
+                          style={{
+                            padding: msg.fileType === 'image' ? '6px' : '14px 20px',
+                            borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                            background: isMine
+                              ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
+                              : '#ffffff',
+                            color: isMine ? '#ffffff' : '#0f172a',
+                            border: isMine ? 'none' : '1.5px solid #e2e8f0',
+                            boxShadow: isMine
+                              ? '0 6px 18px rgba(79, 70, 229, 0.22)'
+                              : '0 4px 10px rgba(0,0,0,0.03)',
+                            fontSize: '0.98rem',
+                            fontWeight: '600',
+                            lineHeight: '1.48',
+                            wordBreak: 'break-word',
+                            maxWidth: '320px',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {/* File rendering */}
+                          {msg.fileUrl && msg.fileType === 'image' && (
+                            <div style={{ position: 'relative', cursor: 'pointer', overflow: 'hidden', borderRadius: '14px' }}>
+                              <img
+                                src={msg.fileUrl}
+                                alt={msg.fileName || 'Image'}
+                                style={{ width: '100%', maxWidth: '280px', borderRadius: '14px', display: 'block', transition: 'transform 0.2s ease' }}
+                                onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
+                              />
+                              <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {isMine && (
+                                  <span
+                                    style={{
+                                      background: isRead ? 'rgba(79, 70, 229, 0.9)' : 'rgba(15, 23, 42, 0.75)',
+                                      color: '#ffffff',
+                                      padding: '3px 8px',
+                                      borderRadius: '8px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 800,
+                                      backdropFilter: 'blur(4px)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                    }}
+                                  >
+                                    {isRead ? (
+                                      <>
+                                        <Eye size={12} /> Seen
+                                      </>
+                                    ) : recipientOnline ? (
+                                      'Delivered'
+                                    ) : (
+                                      'Sent'
+                                    )}
+                                  </span>
+                                )}
+                                <div
+                                  onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
+                                  style={{
+                                    background: 'rgba(15, 23, 42, 0.75)', color: '#ffffff',
+                                    padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 700,
+                                    backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: '4px',
+                                  }}
+                                >
+                                  <Eye size={12} /> View Full
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {msg.fileUrl && msg.fileType === 'video' && (
+                            <video controls style={{ width: '100%', maxWidth: '280px', borderRadius: '14px' }}>
+                              <source src={msg.fileUrl} />
+                            </video>
+                          )}
+                          {msg.fileUrl && msg.fileType === 'audio' && (
+                            <audio controls style={{ width: '100%', maxWidth: '260px', marginBottom: msg.text ? '8px' : 0 }}>
+                              <source src={msg.fileUrl} />
+                            </audio>
+                          )}
+                          {msg.fileUrl && msg.fileType === 'document' && (
+                            <a
+                              href={msg.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none',
+                                color: isMine ? '#ffffff' : '#4f46e5', fontWeight: 700,
+                                background: isMine ? 'rgba(255,255,255,0.1)' : 'rgba(79,70,229,0.07)',
+                                padding: '10px 14px', borderRadius: '10px', marginBottom: msg.text ? '8px' : 0,
+                              }}
+                            >
+                              <span style={{ fontSize: '1.5rem' }}>📄</span>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.fileName}</span>
+                            </a>
+                          )}
+                          {msg.text && <span>{msg.text}</span>}
+                        </div>
                       </div>
 
-                      {/* Real Read Receipt */}
+                      {/* Real Read Receipt & Timestamp */}
                       <div
                         style={{
                           fontSize: '0.72rem',
@@ -1315,6 +1445,7 @@ export default function Dashboard({ user, onLogout }) {
                         }}
                       >
                         <span>{formatTime(msg.createdAt)}</span>
+                        {msg.isEdited && <span style={{ fontStyle: 'italic', color: '#818cf8' }}>• edited</span>}
                         {isMine && (
                           <span className={`status-badge ${isRead ? 'status-seen' : 'status-sent'}`}>
                             {isRead ? (
@@ -1337,6 +1468,35 @@ export default function Dashboard({ user, onLogout }) {
 
             {/* Message Input Box */}
             <div style={{ flexShrink: 0, background: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+
+              {/* Editing Banner */}
+              {editingMessage && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 24px',
+                    background: '#ede9fe',
+                    borderBottom: '1px solid #c7d2fe',
+                    color: '#4f46e5',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Edit3 size={16} />
+                    <span>Editing message...</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <X size={16} /> Cancel
+                  </button>
+                </div>
+              )}
 
               {/* Hidden file input */}
               <input

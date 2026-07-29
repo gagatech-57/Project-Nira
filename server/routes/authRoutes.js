@@ -464,4 +464,67 @@ router.put('/messages/read', async (req, res) => {
   }
 });
 
+// @route   PUT /api/auth/messages/:id (Edit Message)
+router.put('/messages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, sender } = req.body;
+    const isMongoConnected = mongoose.connection.readyState === 1;
+
+    let updatedMsg = null;
+    if (isMongoConnected) {
+      updatedMsg = await Message.findOneAndUpdate(
+        { _id: id, sender },
+        { $set: { text: text ? text.trim() : '', isEdited: true } },
+        { new: true }
+      );
+    } else {
+      const idx = memoryMessages.findIndex((m) => m._id === id && m.sender === sender);
+      if (idx !== -1) {
+        memoryMessages[idx].text = text ? text.trim() : '';
+        memoryMessages[idx].isEdited = true;
+        updatedMsg = memoryMessages[idx];
+      }
+    }
+
+    if (!updatedMsg) {
+      return res.status(404).json({ success: false, message: 'Message not found or unauthorized' });
+    }
+
+    res.json({ success: true, message: updatedMsg });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to edit message' });
+  }
+});
+
+// @route   DELETE /api/auth/messages/:id (Delete Message)
+router.delete('/messages/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sender = req.body?.sender || req.query?.sender;
+    const isMongoConnected = mongoose.connection.readyState === 1;
+
+    let deleted = false;
+    if (isMongoConnected) {
+      const query = sender ? { _id: id, sender } : { _id: id };
+      const resDel = await Message.deleteOne(query);
+      deleted = resDel.deletedCount > 0;
+    } else {
+      const idx = memoryMessages.findIndex((m) => m._id === id);
+      if (idx !== -1) {
+        memoryMessages.splice(idx, 1);
+        deleted = true;
+      }
+    }
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Message not found or unauthorized' });
+    }
+
+    res.json({ success: true, message: 'Message deleted successfully', messageId: id });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to delete message' });
+  }
+});
+
 module.exports = router;

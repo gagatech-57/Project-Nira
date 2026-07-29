@@ -614,4 +614,21 @@ body {
   transform: translateX(2px);
 }
 
+/* Message Hover Actions for Edit and Delete */
+.msg-row {
+  position: relative;
+}
+
+.msg-hover-actions {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.msg-row:hover .msg-hover-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+
 
