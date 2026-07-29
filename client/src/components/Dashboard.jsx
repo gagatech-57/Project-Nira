@@ -19,6 +19,13 @@ import {
   Mail,
   ArrowLeft,
   CheckCircle2,
+  Plus,
+  Download,
+  Image as ImageIcon,
+  FileText,
+  Video,
+  Music,
+  Menu,
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { fetchAllUsers, fetchConversation, postChatMessage, markMessagesAsRead, uploadFile } from '../services/api';
@@ -31,6 +38,8 @@ export default function Dashboard({ user, onLogout }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [lastMessages, setLastMessages] = useState({});
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const [lastMessageTimestamps, setLastMessageTimestamps] = useState({});
   const [newMessageText, setNewMessageText] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
@@ -44,6 +53,10 @@ export default function Dashboard({ user, onLogout }) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Image Popup Lightbox & Attachment Menu Popover States
+  const [activeImagePopup, setActiveImagePopup] = useState(null); // { url, name, time }
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
 
   const messagesContainerRef = useRef(null);
   const isUserAtBottomRef = useRef(true);
@@ -61,15 +74,39 @@ export default function Dashboard({ user, onLogout }) {
 
   const formatLastMessagePreview = (msg) => {
     if (!msg) return 'No messages yet';
-    if (msg.text) return msg.text;
+    const isMine = msg.sender === currentUserId || msg.senderId === currentUserId;
+    const statusText = isMine ? (msg.isRead ? ' • Seen' : ' • Sent') : '';
+
     if (msg.fileUrl) {
-      if (msg.fileType === 'image') return '📷 Image';
-      if (msg.fileType === 'video') return '🎥 Video';
-      if (msg.fileType === 'audio') return '🎵 Audio';
-      return `📎 ${msg.fileName || 'File'}`;
+      if (msg.fileType === 'image') return `📷 Image${statusText}`;
+      if (msg.fileType === 'video') return `🎥 Video${statusText}`;
+      if (msg.fileType === 'audio') return `🎵 Audio${statusText}`;
+      return `📎 ${msg.fileName || 'File'}${statusText}`;
     }
+    if (msg.text) return `${msg.text}${statusText}`;
     return 'No messages yet';
   };
+
+  const formatLastMessageTime = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      const now = new Date();
+      const isToday = d.toDateString() === now.toDateString();
+      if (isToday) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      const isThisYear = d.getFullYear() === now.getFullYear();
+      if (isThisYear) {
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+      return d.toLocaleDateString([], { month: 'numeric', day: 'numeric', year: '2-digit' });
+    } catch (e) {
+      return '';
+    }
+  };
+
   const currentUserAge = user?.age || 'N/A';
   const currentUserMobile = user?.mobile || 'N/A';
 
@@ -159,17 +196,25 @@ export default function Dashboard({ user, onLogout }) {
       }
     });
 
-    newSocket.on('get_online_users', (onlineIds) => {
-      setOnlineUsers(onlineIds || []);
+    newSocket.on('get_online_users', (users) => {
+      setOnlineUsers(users);
     });
 
     newSocket.on('receive_message', (incomingMsg) => {
       const otherUser = incomingMsg.sender === currentUserId ? incomingMsg.receiver : incomingMsg.sender;
 
       if (otherUser) {
+        const msgTime = new Date(incomingMsg.createdAt || Date.now()).getTime();
         setLastMessages((prev) => ({
           ...prev,
-          [otherUser]: formatLastMessagePreview(incomingMsg),
+          [otherUser]: {
+            preview: formatLastMessagePreview(incomingMsg),
+            time: formatLastMessageTime(incomingMsg.createdAt),
+          },
+        }));
+        setLastMessageTimestamps((prev) => ({
+          ...prev,
+          [otherUser]: msgTime,
         }));
       }
 
@@ -191,6 +236,12 @@ export default function Dashboard({ user, onLogout }) {
         if (isUserAtBottomRef.current) {
           setTimeout(scrollToBottomInstant, 50);
         }
+      } else if (incomingMsg.sender && incomingMsg.sender !== currentUserId) {
+        // Increment unread red dot count for contacts not currently selected
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [incomingMsg.sender]: (prev[incomingMsg.sender] || 0) + 1,
+        }));
       }
     });
 
@@ -198,9 +249,17 @@ export default function Dashboard({ user, onLogout }) {
       const otherUser = confirmedMsg.sender === currentUserId ? confirmedMsg.receiver : confirmedMsg.sender;
 
       if (otherUser) {
+        const msgTime = new Date(confirmedMsg.createdAt || Date.now()).getTime();
         setLastMessages((prev) => ({
           ...prev,
-          [otherUser]: formatLastMessagePreview(confirmedMsg),
+          [otherUser]: {
+            preview: formatLastMessagePreview(confirmedMsg),
+            time: formatLastMessageTime(confirmedMsg.createdAt),
+          },
+        }));
+        setLastMessageTimestamps((prev) => ({
+          ...prev,
+          [otherUser]: msgTime,
         }));
       }
 
@@ -246,7 +305,7 @@ export default function Dashboard({ user, onLogout }) {
     return () => clearTimeout(timer);
   }, [searchQuery, currentUserId]);
 
-  // Fetch last message previews for all users in directory
+  // Fetch last message previews and unread counts for all users in directory
   useEffect(() => {
     if (!usersList.length || !currentUserId) return;
 
@@ -255,9 +314,26 @@ export default function Dashboard({ user, onLogout }) {
       const history = await fetchConversation(currentUserId, u._id);
       if (history && history.length > 0) {
         const lastMsg = history[history.length - 1];
+        const msgTime = new Date(lastMsg.createdAt || Date.now()).getTime();
+
+        const unread = history.filter(
+          (m) => m.sender === u._id && m.receiver === currentUserId && !m.isRead
+        ).length;
+
         setLastMessages((prev) => ({
           ...prev,
-          [u._id]: formatLastMessagePreview(lastMsg),
+          [u._id]: {
+            preview: formatLastMessagePreview(lastMsg),
+            time: formatLastMessageTime(lastMsg.createdAt),
+          },
+        }));
+        setLastMessageTimestamps((prev) => ({
+          ...prev,
+          [u._id]: msgTime,
+        }));
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [u._id]: unread,
         }));
       }
     });
@@ -309,17 +385,16 @@ export default function Dashboard({ user, onLogout }) {
         const lastMsg = history[history.length - 1];
         setLastMessages((prev) => ({
           ...prev,
-          [selectedUser._id]: formatLastMessagePreview(lastMsg),
+          [selectedUser._id]: {
+            preview: formatLastMessagePreview(lastMsg),
+            time: formatLastMessageTime(lastMsg.createdAt),
+          },
         }));
       }
 
       if (isInitialLoad) {
         isUserAtBottomRef.current = true;
         setTimeout(scrollToBottomInstant, 30);
-        // Auto-focus message input when user is selected
-        setTimeout(() => {
-          if (messageInputRef.current) messageInputRef.current.focus();
-        }, 100);
       }
     };
 
@@ -378,10 +453,18 @@ export default function Dashboard({ user, onLogout }) {
     };
 
     // Show message immediately in UI
+    const nowTime = Date.now();
     setMessages((prev) => [...prev, msgData]);
     setLastMessages((prev) => ({
       ...prev,
-      [selectedUser._id]: formatLastMessagePreview(msgData),
+      [selectedUser._id]: {
+        preview: formatLastMessagePreview(msgData),
+        time: formatLastMessageTime(msgData.createdAt),
+      },
+    }));
+    setLastMessageTimestamps((prev) => ({
+      ...prev,
+      [selectedUser._id]: nowTime,
     }));
 
     isUserAtBottomRef.current = true;
@@ -410,7 +493,10 @@ export default function Dashboard({ user, onLogout }) {
         // Refresh last message preview with saved database message
         setLastMessages((prev) => ({
           ...prev,
-          [selectedUser._id]: formatLastMessagePreview(res),
+          [selectedUser._id]: {
+            preview: formatLastMessagePreview(res),
+            time: formatLastMessageTime(res.createdAt),
+          },
         }));
       }
     } catch (err) {
@@ -606,111 +692,149 @@ export default function Dashboard({ user, onLogout }) {
               )}
             </div>
           ) : (
-            usersList.map((u) => {
-              const active = selectedUser && selectedUser._id === u._id && !showSettingsPanel;
-              const online = isUserOnline(u._id);
-              const lastMsgPreview = lastMessages[u._id] || 'No messages yet';
+            [...usersList]
+              .sort((a, b) => {
+                const timeA = lastMessageTimestamps[a._id] || 0;
+                const timeB = lastMessageTimestamps[b._id] || 0;
+                if (timeA !== timeB) return timeB - timeA; // Descending: Newest messages on TOP
+                return (a.name || '').localeCompare(b.name || '');
+              })
+              .map((u) => {
+                const active = selectedUser && selectedUser._id === u._id && !showSettingsPanel;
+                const online = isUserOnline(u._id);
+                const lastMsgData = lastMessages[u._id];
+                const lastMsgPreview = typeof lastMsgData === 'object' ? lastMsgData.preview : (lastMsgData || 'No messages yet');
+                const lastMsgTime = typeof lastMsgData === 'object' ? lastMsgData.time : '';
+                const unreadCount = unreadCounts[u._id] || 0;
 
-              return (
-                <div
-                  key={u._id}
-                  onClick={() => setSelectedUser(u)}
-                  title={u.name}
-                  style={{
-                    padding: sidebarCollapsed ? '12px 0' : '14px 16px',
-                    borderRadius: '16px',
-                    marginBottom: '8px',
-                    cursor: 'pointer',
-                    background: active ? '#ffffff' : 'transparent',
-                    border: `1.5px solid ${active ? '#4f46e5' : 'transparent'}`,
-                    boxShadow: active ? '0 4px 14px rgba(79, 70, 229, 0.12)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: sidebarCollapsed ? '0' : '14px', minWidth: 0, flex: 1, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <div
-                        style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '50%',
-                          background: '#0f172a',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '800',
-                          fontSize: '1.1rem',
-                        }}
-                      >
-                        {(u.name || 'U').charAt(0).toUpperCase()}
+                return (
+                  <div
+                    key={u._id}
+                    onClick={() => {
+                      setSelectedUser(u);
+                      setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
+                    }}
+                    title={u.name}
+                    style={{
+                      padding: sidebarCollapsed ? '12px 0' : '14px 16px',
+                      borderRadius: '16px',
+                      marginBottom: '8px',
+                      cursor: 'pointer',
+                      background: active ? '#ffffff' : 'transparent',
+                      border: `1.5px solid ${active ? '#4f46e5' : 'transparent'}`,
+                      boxShadow: active ? '0 4px 14px rgba(79, 70, 229, 0.12)' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: sidebarCollapsed ? '0' : '14px', minWidth: 0, flex: 1, justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <div
+                          style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '50%',
+                            background: '#0f172a',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '800',
+                            fontSize: '1.1rem',
+                          }}
+                        >
+                          {(u.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <span className={online ? 'online-pulse' : 'offline-pulse'}></span>
                       </div>
-                      <span className={online ? 'online-pulse' : 'offline-pulse'}></span>
+
+                      {!sidebarCollapsed && (
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <h4 className="font-extrabold" style={{ fontSize: '1.08rem', color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {u.name}
+                          </h4>
+                          <p
+                            style={{
+                              fontSize: '0.85rem',
+                              color: unreadCount > 0 ? '#4f46e5' : '#64748b',
+                              fontWeight: unreadCount > 0 ? '800' : '600',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              marginTop: '3px',
+                            }}
+                          >
+                            {lastMsgPreview}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {!sidebarCollapsed && (
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        {/* LARGER FONT SIZE FOR CONTACT NAME */}
-                        <h4 className="font-extrabold" style={{ fontSize: '1.08rem', color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {u.name}
-                        </h4>
-                        <p
-                          style={{
-                            fontSize: '0.85rem',
-                            color: '#64748b',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            marginTop: '3px',
-                          }}
-                        >
-                          {lastMsgPreview}
-                        </p>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-end',
+                          justifyContent: 'center',
+                          marginLeft: '8px',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {lastMsgTime && (
+                          <span
+                            style={{
+                              fontSize: '0.74rem',
+                              fontWeight: '700',
+                              color: unreadCount > 0 ? '#ef4444' : '#94a3b8',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {lastMsgTime}
+                          </span>
+                        )}
+                        {unreadCount > 0 && (
+                          <span
+                            style={{
+                              minWidth: '18px',
+                              height: '18px',
+                              padding: '0 5px',
+                              borderRadius: '10px',
+                              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                              color: '#ffffff',
+                              fontSize: '0.68rem',
+                              fontWeight: '900',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)',
+                              marginTop: '4px',
+                            }}
+                            title={`${unreadCount} unread message${unreadCount > 1 ? 's' : ''}`}
+                          >
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
-
-                  {!sidebarCollapsed && (
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        fontWeight: '800',
-                        padding: '4px 10px',
-                        borderRadius: '12px',
-                        background: online ? '#ecfdf5' : '#f1f5f9',
-                        color: online ? '#047857' : '#94a3b8',
-                        border: `1px solid ${online ? '#a7f3d0' : '#e2e8f0'}`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        flexShrink: 0,
-                        marginLeft: '8px',
-                      }}
-                    >
-                      <Circle size={6} fill={online ? '#10b981' : '#94a3b8'} color="none" />
-                      {online ? 'Online' : 'Offline'}
-                    </span>
-                  )}
-                </div>
-              );
-            })
+                );
+              })
           )}
         </div>
 
         {/* BOTTOM SETTINGS & LOGOUT AREA */}
         <div
           style={{
-            padding: sidebarCollapsed ? '10px 6px' : '10px 12px',
+            padding: sidebarCollapsed ? '12px 6px' : '14px 16px',
             borderTop: '1px solid #e2e8f0',
-            background: '#ffffff',
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-            gap: '8px',
+            gap: '10px',
             flexShrink: 0,
           }}
         >
@@ -721,23 +845,28 @@ export default function Dashboard({ user, onLogout }) {
             title="User Profile & Settings"
             style={{
               border: 'none',
-              background: showSettingsPanel ? '#4f46e5' : '#f1f5f9',
-              color: showSettingsPanel ? '#ffffff' : '#0f172a',
-              padding: sidebarCollapsed ? '9px' : '9px 12px',
-              borderRadius: '10px',
+              background: showSettingsPanel
+                ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
+                : 'linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)',
+              color: showSettingsPanel ? '#ffffff' : '#4f46e5',
+              padding: sidebarCollapsed ? '10px' : '10px 16px',
+              borderRadius: '14px',
               fontWeight: '800',
-              fontSize: '0.85rem',
+              fontSize: '0.88rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
+              gap: '8px',
               whiteSpace: 'nowrap',
               flex: sidebarCollapsed ? 'none' : 1,
-              transition: 'all 0.2s ease',
+              boxShadow: showSettingsPanel
+                ? '0 4px 14px rgba(79, 70, 229, 0.3)'
+                : '0 2px 6px rgba(79, 70, 229, 0.08)',
+              transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
-            <Settings size={16} style={{ color: showSettingsPanel ? '#ffffff' : '#4f46e5' }} />
+            <Menu size={18} strokeWidth={2.5} style={{ color: showSettingsPanel ? '#ffffff' : '#4f46e5' }} />
             {!sidebarCollapsed && 'Settings'}
           </button>
 
@@ -746,21 +875,23 @@ export default function Dashboard({ user, onLogout }) {
               onClick={onLogout}
               title="Sign Out"
               style={{
-                border: 'none',
+                border: '1px solid #fecaca',
                 background: '#fef2f2',
                 color: '#ef4444',
-                padding: '9px 12px',
-                borderRadius: '10px',
+                padding: '10px 16px',
+                borderRadius: '14px',
                 fontWeight: '800',
-                fontSize: '0.85rem',
+                fontSize: '0.88rem',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 whiteSpace: 'nowrap',
+                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
+                transition: 'all 0.22s ease',
               }}
             >
-              <LogOut size={16} /> Logout
+              <LogOut size={16} strokeWidth={2.5} /> Logout
             </button>
           )}
         </div>
@@ -1056,12 +1187,52 @@ export default function Dashboard({ user, onLogout }) {
                       >
                         {/* File rendering */}
                         {msg.fileUrl && msg.fileType === 'image' && (
-                          <img
-                            src={msg.fileUrl}
-                            alt={msg.fileName}
-                            style={{ width: '100%', maxWidth: '280px', borderRadius: '14px', display: 'block', cursor: 'pointer' }}
-                            onClick={() => window.open(msg.fileUrl, '_blank')}
-                          />
+                          <div style={{ position: 'relative', cursor: 'pointer', overflow: 'hidden', borderRadius: '14px' }}>
+                            <img
+                              src={msg.fileUrl}
+                              alt={msg.fileName || 'Image'}
+                              style={{ width: '100%', maxWidth: '280px', borderRadius: '14px', display: 'block', transition: 'transform 0.2s ease' }}
+                              onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
+                            />
+                            <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {isMine && (
+                                <span
+                                  style={{
+                                    background: isRead ? 'rgba(79, 70, 229, 0.9)' : 'rgba(15, 23, 42, 0.75)',
+                                    color: '#ffffff',
+                                    padding: '3px 8px',
+                                    borderRadius: '8px',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 800,
+                                    backdropFilter: 'blur(4px)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  {isRead ? (
+                                    <>
+                                      <Eye size={12} /> Seen
+                                    </>
+                                  ) : recipientOnline ? (
+                                    'Delivered'
+                                  ) : (
+                                    'Sent'
+                                  )}
+                                </span>
+                              )}
+                              <div
+                                onClick={() => setActiveImagePopup({ url: msg.fileUrl, name: msg.fileName || 'Shared Image', time: formatTime(msg.createdAt), isMine, isRead, recipientOnline })}
+                                style={{
+                                  background: 'rgba(15, 23, 42, 0.75)', color: '#ffffff',
+                                  padding: '4px 8px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 700,
+                                  backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: '4px',
+                                }}
+                              >
+                                <Eye size={12} /> View Full
+                              </div>
+                            </div>
+                          </div>
                         )}
                         {msg.fileUrl && msg.fileType === 'video' && (
                           <video controls style={{ width: '100%', maxWidth: '280px', borderRadius: '14px' }}>
@@ -1134,7 +1305,12 @@ export default function Dashboard({ user, onLogout }) {
                 type="file"
                 style={{ display: 'none' }}
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip"
-                onChange={(e) => handleFileSelect(e.target.files[0])}
+                onChange={(e) => {
+                  handleFileSelect(e.target.files[0]);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip';
+                  }
+                }}
               />
 
               {/* File preview bar */}
@@ -1172,20 +1348,100 @@ export default function Dashboard({ user, onLogout }) {
                   gap: '12px',
                 }}
               >
-                {/* + button to browse files */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                  title="Attach file"
-                  style={{
-                    width: '44px', height: '44px', borderRadius: '12px', border: '2px solid #e2e8f0',
-                    background: '#f8fafc', color: '#4f46e5', fontSize: '1.5rem', fontWeight: 900,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', flexShrink: 0, transition: 'all 0.18s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#ede9fe'; e.currentTarget.style.borderColor = '#4f46e5'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
-                >+</button>
+                {/* Styled + Button with Attachment Options Popover */}
+                <div style={{ position: 'relative' }}>
+                  {showAttachMenu && (
+                    <div className="attach-menu-popover">
+                      <button
+                        type="button"
+                        className="attach-option-btn"
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.accept = 'image/*';
+                            fileInputRef.current.click();
+                          }
+                        }}
+                      >
+                        <ImageIcon size={18} style={{ color: '#ec4899' }} />
+                        <span>Photo / Image</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="attach-option-btn"
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.accept = 'video/*';
+                            fileInputRef.current.click();
+                          }
+                        }}
+                      >
+                        <Video size={18} style={{ color: '#8b5cf6' }} />
+                        <span>Video Clip</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="attach-option-btn"
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.accept = 'audio/*';
+                            fileInputRef.current.click();
+                          }
+                        }}
+                      >
+                        <Music size={18} style={{ color: '#10b981' }} />
+                        <span>Audio Track</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="attach-option-btn"
+                        onClick={() => {
+                          setShowAttachMenu(false);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip';
+                            fileInputRef.current.click();
+                          }
+                        }}
+                      >
+                        <FileText size={18} style={{ color: '#3b82f6' }} />
+                        <span>Document</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachMenu(!showAttachMenu)}
+                    title="Attach Photos, Videos or Files"
+                    style={{
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '14px',
+                      border: 'none',
+                      background: showAttachMenu
+                        ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
+                        : 'linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)',
+                      color: showAttachMenu ? '#ffffff' : '#4f46e5',
+                      boxShadow: showAttachMenu
+                        ? '0 6px 16px rgba(79, 70, 229, 0.35)'
+                        : '0 2px 8px rgba(79, 70, 229, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transform: showAttachMenu ? 'rotate(45deg)' : 'rotate(0deg)',
+                    }}
+                  >
+                    <Plus size={24} strokeWidth={2.8} />
+                  </button>
+                </div>
 
                 <input
                   ref={messageInputRef}
@@ -1286,6 +1542,122 @@ export default function Dashboard({ user, onLogout }) {
               <span style={{ fontWeight: '800', fontSize: '0.98rem', color: '#0f172a' }}>
                 Your handle: <strong style={{ color: '#4f46e5' }}>@{currentUserHandle}</strong>
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* Image Fullscreen Lightbox Modal Popup */}
+        {activeImagePopup && (
+          <div
+            className="image-lightbox-overlay"
+            onClick={() => setActiveImagePopup(null)}
+          >
+            <div
+              className="image-lightbox-container"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '14px',
+                  color: '#ffffff',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  padding: '10px 18px',
+                  borderRadius: '14px',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <ImageIcon size={20} style={{ color: '#818cf8' }} />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{activeImagePopup.name}</span>
+                      {activeImagePopup.isMine && (
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: '800',
+                            padding: '2px 8px',
+                            borderRadius: '8px',
+                            background: activeImagePopup.isRead ? 'rgba(79, 70, 229, 0.35)' : 'rgba(255, 255, 255, 0.15)',
+                            color: activeImagePopup.isRead ? '#a5b4fc' : '#cbd5e1',
+                            border: `1px solid ${activeImagePopup.isRead ? 'rgba(165, 180, 252, 0.4)' : 'rgba(255, 255, 255, 0.2)'}`,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          {activeImagePopup.isRead ? (
+                            <>
+                              <Eye size={12} /> Seen
+                            </>
+                          ) : activeImagePopup.recipientOnline ? (
+                            'Delivered'
+                          ) : (
+                            'Sent'
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {activeImagePopup.time && (
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>
+                        Sent at {activeImagePopup.time}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <a
+                    href={activeImagePopup.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                    title="Download / Open Full Size"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textDecoration: 'none',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <Download size={18} />
+                  </a>
+                  <button
+                    onClick={() => setActiveImagePopup(null)}
+                    title="Close Preview"
+                    style={{
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      padding: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <img
+                src={activeImagePopup.url}
+                alt={activeImagePopup.name}
+                className="image-lightbox-img"
+              />
             </div>
           </div>
         )}
