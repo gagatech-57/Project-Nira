@@ -308,12 +308,26 @@ export default function Dashboard({ user, onLogout }) {
 
     newSocket.on('message_edited', ({ messageId, text }) => {
       setMessages((prevMsgs) =>
-        prevMsgs.map((m) => (m._id === messageId ? { ...m, text, isEdited: true } : m))
+        prevMsgs.map((m) => (String(m._id) === String(messageId) ? { ...m, text, isEdited: true } : m))
       );
     });
 
     newSocket.on('message_deleted', ({ messageId }) => {
-      setMessages((prevMsgs) => prevMsgs.filter((m) => m._id !== messageId));
+      setMessages((prevMsgs) => {
+        const filtered = prevMsgs.filter((m) => String(m._id) !== String(messageId));
+        const selUser = selectedUserRef.current;
+        if (selUser) {
+          const newLastMsg = filtered[filtered.length - 1];
+          setLastMessages((lastPrev) => ({
+            ...lastPrev,
+            [selUser._id]: {
+              preview: newLastMsg ? formatLastMessagePreview(newLastMsg) : '',
+              time: newLastMsg ? formatLastMessageTime(newLastMsg.createdAt) : '',
+            },
+          }));
+        }
+        return filtered;
+      });
     });
 
     return () => {
@@ -497,8 +511,19 @@ export default function Dashboard({ user, onLogout }) {
     const targetMsg = deleteConfirmMsg;
     setDeleteConfirmMsg(null);
 
-    // Optimistically remove from UI
-    setMessages((prev) => prev.filter((m) => m._id !== targetMsg._id));
+    // Optimistically remove from UI and update sidebar last message preview
+    setMessages((prev) => {
+      const filtered = prev.filter((m) => String(m._id) !== String(targetMsg._id));
+      const newLastMsg = filtered[filtered.length - 1];
+      setLastMessages((lastPrev) => ({
+        ...lastPrev,
+        [selectedUser._id]: {
+          preview: newLastMsg ? formatLastMessagePreview(newLastMsg) : '',
+          time: newLastMsg ? formatLastMessageTime(newLastMsg.createdAt) : '',
+        },
+      }));
+      return filtered;
+    });
 
     // Emit socket delete event to partner
     if (socket) {

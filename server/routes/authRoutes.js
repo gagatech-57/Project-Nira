@@ -468,18 +468,21 @@ router.put('/messages/read', async (req, res) => {
 router.put('/messages/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { text, sender } = req.body;
+    const { text } = req.body;
     const isMongoConnected = mongoose.connection.readyState === 1;
 
     let updatedMsg = null;
     if (isMongoConnected) {
+      const idQuery = mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+      const query = { $or: [{ _id: id }, { _id: idQuery }] };
+
       updatedMsg = await Message.findOneAndUpdate(
-        { _id: id, sender },
+        query,
         { $set: { text: text ? text.trim() : '', isEdited: true } },
         { new: true }
       );
     } else {
-      const idx = memoryMessages.findIndex((m) => m._id === id && m.sender === sender);
+      const idx = memoryMessages.findIndex((m) => String(m._id) === String(id));
       if (idx !== -1) {
         memoryMessages[idx].text = text ? text.trim() : '';
         memoryMessages[idx].isEdited = true;
@@ -488,11 +491,12 @@ router.put('/messages/:id', async (req, res) => {
     }
 
     if (!updatedMsg) {
-      return res.status(404).json({ success: false, message: 'Message not found or unauthorized' });
+      return res.status(404).json({ success: false, message: 'Message not found' });
     }
 
     res.json({ success: true, message: updatedMsg });
   } catch (error) {
+    console.error('Error editing message:', error);
     res.status(500).json({ success: false, message: 'Failed to edit message' });
   }
 });
@@ -501,16 +505,15 @@ router.put('/messages/:id', async (req, res) => {
 router.delete('/messages/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const sender = req.body?.sender || req.query?.sender;
     const isMongoConnected = mongoose.connection.readyState === 1;
 
     let deleted = false;
     if (isMongoConnected) {
-      const query = sender ? { _id: id, sender } : { _id: id };
-      const resDel = await Message.deleteOne(query);
+      const idQuery = mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : id;
+      const resDel = await Message.deleteOne({ $or: [{ _id: id }, { _id: idQuery }] });
       deleted = resDel.deletedCount > 0;
     } else {
-      const idx = memoryMessages.findIndex((m) => m._id === id);
+      const idx = memoryMessages.findIndex((m) => String(m._id) === String(id));
       if (idx !== -1) {
         memoryMessages.splice(idx, 1);
         deleted = true;
@@ -518,11 +521,12 @@ router.delete('/messages/:id', async (req, res) => {
     }
 
     if (!deleted) {
-      return res.status(404).json({ success: false, message: 'Message not found or unauthorized' });
+      return res.status(404).json({ success: false, message: 'Message not found' });
     }
 
     res.json({ success: true, message: 'Message deleted successfully', messageId: id });
   } catch (error) {
+    console.error('Error deleting message:', error);
     res.status(500).json({ success: false, message: 'Failed to delete message' });
   }
 });

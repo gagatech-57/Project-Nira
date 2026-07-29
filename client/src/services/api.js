@@ -101,6 +101,11 @@ export const editChatMessage = async (messageId, sender, text) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender, text }),
     });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      console.error('Edit message endpoint returned error:', response.status, errData);
+      return null;
+    }
     return await response.json();
   } catch (error) {
     console.error('Error editing message:', error);
@@ -114,6 +119,11 @@ export const deleteChatMessage = async (messageId, sender) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sender }),
     });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      console.error('Delete message endpoint returned error:', response.status, errData);
+      return null;
+    }
     return await response.json();
   } catch (error) {
     console.error('Error deleting message:', error);
