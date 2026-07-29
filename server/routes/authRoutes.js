@@ -430,16 +430,29 @@ router.put('/messages/read', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing reader or sender ID' });
     }
 
+    const rStr = readerId.toString();
+    const sStr = senderId.toString();
     const isMongoConnected = mongoose.connection.readyState === 1;
 
     if (isMongoConnected) {
+      const sObj = mongoose.Types.ObjectId.isValid(sStr) ? new mongoose.Types.ObjectId(sStr) : sStr;
+      const rObj = mongoose.Types.ObjectId.isValid(rStr) ? new mongoose.Types.ObjectId(rStr) : rStr;
+
       await Message.updateMany(
-        { sender: senderId, receiver: readerId, isRead: false },
+        {
+          $or: [
+            { sender: sStr, receiver: rStr },
+            { sender: sObj, receiver: rObj },
+            { sender: sStr, receiver: rObj },
+            { sender: sObj, receiver: rStr },
+          ],
+          isRead: false,
+        },
         { $set: { isRead: true } }
       );
     } else {
       memoryMessages.forEach((m) => {
-        if (m.sender === senderId && m.receiver === readerId) {
+        if (m.sender === sStr && m.receiver === rStr) {
           m.isRead = true;
         }
       });

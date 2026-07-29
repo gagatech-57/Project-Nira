@@ -158,8 +158,20 @@ io.on('connection', (socket) => {
 
     try {
       if (require('mongoose').connection.readyState === 1) {
+        const mongoose = require('mongoose');
+        const sObj = mongoose.Types.ObjectId.isValid(sStr) ? new mongoose.Types.ObjectId(sStr) : sStr;
+        const rObj = mongoose.Types.ObjectId.isValid(rStr) ? new mongoose.Types.ObjectId(rStr) : rStr;
+
         await Message.updateMany(
-          { sender: sStr, receiver: rStr, isRead: false },
+          {
+            $or: [
+              { sender: sStr, receiver: rStr },
+              { sender: sObj, receiver: rObj },
+              { sender: sStr, receiver: rObj },
+              { sender: sObj, receiver: rStr },
+            ],
+            isRead: false,
+          },
           { $set: { isRead: true } }
         );
       }

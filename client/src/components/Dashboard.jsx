@@ -250,6 +250,9 @@ export default function Dashboard({ user, onLogout }) {
         }
       } else if (incomingMsg.sender && incomingMsg.sender !== currentUserId) {
         // Increment unread red dot count for contacts not currently selected
+        try {
+          localStorage.removeItem(`cleared_unread_${currentUserId}_${incomingMsg.sender}`);
+        } catch (e) {}
         setUnreadCounts((prev) => ({
           ...prev,
           [incomingMsg.sender]: (prev[incomingMsg.sender] || 0) + 1,
@@ -328,12 +331,22 @@ export default function Dashboard({ user, onLogout }) {
         const lastMsg = history[history.length - 1];
         const msgTime = new Date(lastMsg.createdAt || Date.now()).getTime();
 
+        const seenTimeStr = localStorage.getItem(`seen_chat_${currentUserId}_${u._id}`);
+        const seenTime = seenTimeStr ? parseInt(seenTimeStr, 10) : 0;
+        const isCleared = localStorage.getItem(`cleared_unread_${currentUserId}_${u._id}`) === 'true';
         const isCurrentlySelected = selectedUserRef.current && selectedUserRef.current._id === u._id;
-        const unread = isCurrentlySelected
-          ? 0
-          : history.filter(
-              (m) => m.sender === u._id && m.receiver === currentUserId && !m.isRead
-            ).length;
+
+        const unreadMessages = history.filter((m) => {
+          if (m.sender !== u._id || m.receiver !== currentUserId) return false;
+          if (m.isRead) return false;
+          if (seenTime > 0) {
+            const mTime = new Date(m.createdAt || 0).getTime();
+            if (mTime <= seenTime) return false;
+          }
+          return true;
+        });
+
+        const unread = (isCurrentlySelected || isCleared) ? 0 : unreadMessages.length;
 
         setLastMessages((prev) => ({
           ...prev,
@@ -370,6 +383,10 @@ export default function Dashboard({ user, onLogout }) {
 
       markMessagesAsRead(currentUserId, selectedUser._id);
       setUnreadCounts((prev) => ({ ...prev, [selectedUser._id]: 0 }));
+      try {
+        localStorage.setItem(`seen_chat_${currentUserId}_${selectedUser._id}`, Date.now().toString());
+        localStorage.setItem(`cleared_unread_${currentUserId}_${selectedUser._id}`, 'true');
+      } catch (e) {}
     }
   }, [messages, selectedUser, currentUserId, socket]);
 
@@ -379,6 +396,10 @@ export default function Dashboard({ user, onLogout }) {
 
     setShowSettingsPanel(false);
     setUnreadCounts((prev) => ({ ...prev, [selectedUser._id]: 0 }));
+    try {
+      localStorage.setItem(`seen_chat_${currentUserId}_${selectedUser._id}`, Date.now().toString());
+      localStorage.setItem(`cleared_unread_${currentUserId}_${selectedUser._id}`, 'true');
+    } catch (e) {}
 
     if (socketRef.current) {
       socketRef.current.emit('active_chat_changed', {
