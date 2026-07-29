@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const connectDB = async () => {
-  const onlineURI = process.env.MONGODB_URI;
+  const onlineURI = process.env.MONGODB_URI || 'mongodb+srv://gunaknn_db_user:6zECNdy7uvm1LcGm@cluster0.hqcu6zx.mongodb.net/nira_chat_db?retryWrites=true&w=majority';
   const localURI = 'mongodb://127.0.0.1:27017/realtime_chat_db';
 
   if (onlineURI) {
