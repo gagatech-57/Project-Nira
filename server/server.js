@@ -194,28 +194,8 @@ io.on('connection', (socket) => {
 
     console.log(`💬 Message sent from ${senderStr} to ${receiverStr}`);
 
-    // Save message to MongoDB via Socket.IO directly to ensure persistence
-    try {
-      if (require('mongoose').connection.readyState === 1) {
-        const savedDbMessage = await Message.create({
-          sender: senderStr,
-          receiver: receiverStr,
-          text: formattedData.text,
-          isRead: formattedData.isRead,
-          fileUrl: formattedData.fileUrl,
-          fileName: formattedData.fileName,
-          fileType: formattedData.fileType,
-          fileSize: formattedData.fileSize,
-        });
-        formattedData._id = savedDbMessage._id.toString();
-      }
-    } catch (err) {
-      console.error('Error saving message via socket to DB:', err);
-    }
-
     // Live broadcast to receiver
     io.to(receiverStr).emit('receive_message', formattedData);
-    socket.emit('message_sent', formattedData);
 
     if (isRecipientViewingChat) {
       io.to(senderStr).emit('messages_read', { readerId: receiverStr, partnerId: senderStr });

@@ -58,6 +58,18 @@ export default function Dashboard({ user, onLogout }) {
   const currentUserHandle = (user?.username || 'user').toLowerCase();
   const currentUserEmail = user?.email || 'Not provided';
   const currentUserGender = user?.gender === 'M' ? 'Male' : user?.gender === 'F' ? 'Female' : 'Other';
+
+  const formatLastMessagePreview = (msg) => {
+    if (!msg) return 'No messages yet';
+    if (msg.text) return msg.text;
+    if (msg.fileUrl) {
+      if (msg.fileType === 'image') return '📷 Image';
+      if (msg.fileType === 'video') return '🎥 Video';
+      if (msg.fileType === 'audio') return '🎵 Audio';
+      return `📎 ${msg.fileName || 'File'}`;
+    }
+    return 'No messages yet';
+  };
   const currentUserAge = user?.age || 'N/A';
   const currentUserMobile = user?.mobile || 'N/A';
 
@@ -157,7 +169,7 @@ export default function Dashboard({ user, onLogout }) {
       if (otherUser) {
         setLastMessages((prev) => ({
           ...prev,
-          [otherUser]: incomingMsg.text,
+          [otherUser]: formatLastMessagePreview(incomingMsg),
         }));
       }
 
@@ -188,7 +200,7 @@ export default function Dashboard({ user, onLogout }) {
       if (otherUser) {
         setLastMessages((prev) => ({
           ...prev,
-          [otherUser]: confirmedMsg.text,
+          [otherUser]: formatLastMessagePreview(confirmedMsg),
         }));
       }
 
@@ -245,7 +257,7 @@ export default function Dashboard({ user, onLogout }) {
         const lastMsg = history[history.length - 1];
         setLastMessages((prev) => ({
           ...prev,
-          [u._id]: lastMsg.text,
+          [u._id]: formatLastMessagePreview(lastMsg),
         }));
       }
     });
@@ -297,7 +309,7 @@ export default function Dashboard({ user, onLogout }) {
         const lastMsg = history[history.length - 1];
         setLastMessages((prev) => ({
           ...prev,
-          [selectedUser._id]: lastMsg.text,
+          [selectedUser._id]: formatLastMessagePreview(lastMsg),
         }));
       }
 
@@ -369,7 +381,7 @@ export default function Dashboard({ user, onLogout }) {
     setMessages((prev) => [...prev, msgData]);
     setLastMessages((prev) => ({
       ...prev,
-      [selectedUser._id]: textToSend || (fileData ? `📎 ${fileData.fileName}` : ''),
+      [selectedUser._id]: formatLastMessagePreview(msgData),
     }));
 
     isUserAtBottomRef.current = true;
@@ -379,7 +391,7 @@ export default function Dashboard({ user, onLogout }) {
       socket.emit('send_message', {
         sender: currentUserId,
         receiver: selectedUser._id,
-        text: textToSend || (fileData ? `📎 ${fileData.fileName}` : ''),
+        text: textToSend,
         createdAt: new Date().toISOString(),
         fileUrl: fileData ? fileData.fileUrl : null,
         fileName: fileData ? fileData.fileName : null,
@@ -395,6 +407,11 @@ export default function Dashboard({ user, onLogout }) {
         setMessages((prevMsgs) =>
           prevMsgs.map((m) => (m._id === msgData._id ? { ...res, ...(fileData || {}) } : m))
         );
+        // Refresh last message preview with saved database message
+        setLastMessages((prev) => ({
+          ...prev,
+          [selectedUser._id]: formatLastMessagePreview(res),
+        }));
       }
     } catch (err) {
       console.error('Failed to save message:', err);
