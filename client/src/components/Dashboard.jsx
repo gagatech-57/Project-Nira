@@ -88,7 +88,7 @@ export default function Dashboard({ user, onLogout }) {
   const currentUserGender = user?.gender === 'M' ? 'Male' : user?.gender === 'F' ? 'Female' : 'Other';
 
   const formatLastMessagePreview = (msg) => {
-    if (!msg) return 'No messages yet';
+    if (!msg) return '';
     if (msg.fileUrl) {
       if (msg.fileType === 'image') return '📷 Image';
       if (msg.fileType === 'video') return '🎥 Video';
@@ -96,7 +96,7 @@ export default function Dashboard({ user, onLogout }) {
       return `📎 ${msg.fileName || 'File'}`;
     }
     if (msg.text) return msg.text;
-    return 'No messages yet';
+    return '';
   };
 
   const formatLastMessageTime = (dateStr) => {
@@ -742,7 +742,7 @@ export default function Dashboard({ user, onLogout }) {
                 const active = selectedUser && selectedUser._id === u._id && !showSettingsPanel;
                 const online = isUserOnline(u._id);
                 const lastMsgData = lastMessages[u._id];
-                const lastMsgPreview = typeof lastMsgData === 'object' ? lastMsgData.preview : (lastMsgData || 'No messages yet');
+                const lastMsgPreview = typeof lastMsgData === 'object' ? lastMsgData.preview : (lastMsgData || '');
                 const lastMsgTime = typeof lastMsgData === 'object' ? lastMsgData.time : '';
                 const unreadCount = unreadCounts[u._id] || 0;
 
