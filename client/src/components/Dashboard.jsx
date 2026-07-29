@@ -357,14 +357,26 @@ export default function Dashboard({ user, onLogout }) {
     const loadUsers = async () => {
       setLoadingUsers(true);
       const list = await fetchAllUsers(searchQuery.toLowerCase());
-      const filtered = list.filter((u) => u._id !== currentUserId);
+      const filtered = list.filter(
+        (u) =>
+          String(u._id || u.id) !== String(currentUserId) &&
+          u.username?.toLowerCase() !== currentUserHandle &&
+          u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
+      );
       setUsersList(filtered);
       setLoadingUsers(false);
     };
 
     const timer = setTimeout(loadUsers, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery, currentUserId]);
+  }, [searchQuery, currentUserId, currentUserHandle, currentUserEmail]);
+
+  // Auto-select first contact if none selected yet
+  useEffect(() => {
+    if (!selectedUser && usersList.length > 0) {
+      setSelectedUser(usersList[0]);
+    }
+  }, [usersList, selectedUser]);
 
   // Fetch last message previews and unread counts for all users in directory
   useEffect(() => {
@@ -877,6 +889,7 @@ export default function Dashboard({ user, onLogout }) {
                     onClick={() => {
                       setSelectedUser(u);
                       setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
+                      setSearchQuery('');
                     }}
                     title={u.name}
                     style={{
