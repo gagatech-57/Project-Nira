@@ -62,6 +62,51 @@ export default function Dashboard({ user, onLogout }) {
     socketRef.current = socket;
   }, [socket]);
 
+  // Deduplication helper to prevent message doubling
+  const upsertMessage = (prevMsgs, incomingMsg) => {
+    if (!incomingMsg || !incomingMsg.text) return prevMsgs;
+
+    // 1. Check exact ID match
+    const exactMatchIndex = prevMsgs.findIndex((m) => m._id === incomingMsg._id && m._id);
+    if (exactMatchIndex !== -1) {
+      const copy = [...prevMsgs];
+      copy[exactMatchIndex] = { ...copy[exactMatchIndex], ...incomingMsg };
+      return copy;
+    }
+
+    // 2. Check temp ID replacement match (match by temp prefix, text, and sender)
+    const tempMatchIndex = prevMsgs.findIndex(
+      (m) =>
+        typeof m._id === 'string' &&
+        m._id.startsWith('temp_') &&
+        m.sender === incomingMsg.sender &&
+        m.text === incomingMsg.text
+    );
+
+    if (tempMatchIndex !== -1) {
+      const copy = [...prevMsgs];
+      copy[tempMatchIndex] = incomingMsg;
+      return copy;
+    }
+
+    // 3. Proximity text check (same sender + text within 3.5s)
+    const textProximityIndex = prevMsgs.findIndex((m) => {
+      if (m.sender !== incomingMsg.sender || m.text !== incomingMsg.text) return false;
+      const t1 = new Date(m.createdAt || Date.now()).getTime();
+      const t2 = new Date(incomingMsg.createdAt || Date.now()).getTime();
+      return Math.abs(t1 - t2) < 3500;
+    });
+
+    if (textProximityIndex !== -1) {
+      const copy = [...prevMsgs];
+      copy[textProximityIndex] = incomingMsg;
+      return copy;
+    }
+
+    // Otherwise append new unique message
+    return [...prevMsgs, incomingMsg];
+  };
+
   // Instant scroll helper (0 animation delay)
   const scrollToBottomInstant = () => {
     if (messagesContainerRef.current) {
@@ -114,11 +159,7 @@ export default function Dashboard({ user, onLogout }) {
         ((incomingMsg.sender === selUser._id && incomingMsg.receiver === currentUserId) ||
           (incomingMsg.sender === currentUserId && incomingMsg.receiver === selUser._id))
       ) {
-        setMessages((prevMsgs) => {
-          const exists = prevMsgs.some((m) => m._id === incomingMsg._id && m._id);
-          if (exists) return prevMsgs;
-          return [...prevMsgs, incomingMsg];
-        });
+        setMessages((prevMsgs) => upsertMessage(prevMsgs, incomingMsg));
 
         if (incomingMsg.sender === selUser._id && newSocket) {
           newSocket.emit('mark_read_instant', {
@@ -149,11 +190,7 @@ export default function Dashboard({ user, onLogout }) {
         ((confirmedMsg.sender === currentUserId && confirmedMsg.receiver === selUser._id) ||
           (confirmedMsg.sender === selUser._id && confirmedMsg.receiver === selUser._id))
       ) {
-        setMessages((prevMsgs) => {
-          const exists = prevMsgs.some((m) => m._id === confirmedMsg._id && m._id);
-          if (exists) return prevMsgs;
-          return [...prevMsgs, confirmedMsg];
-        });
+        setMessages((prevMsgs) => upsertMessage(prevMsgs, confirmedMsg));
 
         if (isUserAtBottomRef.current) {
           setTimeout(scrollToBottomInstant, 50);
@@ -315,7 +352,10 @@ export default function Dashboard({ user, onLogout }) {
     }
 
     try {
-      await postChatMessage(currentUserId, selectedUser._id, textToSend, false);
+      const res = await postChatMessage(currentUserId, selectedUser._id, textToSend, false);
+      if (res && res.message) {
+        setMessages((prevMsgs) => upsertMessage(prevMsgs, res.message));
+      }
     } catch (err) {
       console.error('Failed to save message:', err);
     }
