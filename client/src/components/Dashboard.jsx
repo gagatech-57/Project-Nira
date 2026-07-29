@@ -89,16 +89,13 @@ export default function Dashboard({ user, onLogout }) {
 
   const formatLastMessagePreview = (msg) => {
     if (!msg) return 'No messages yet';
-    const isMine = msg.sender === currentUserId || msg.senderId === currentUserId;
-    const statusText = isMine ? (msg.isRead ? ' • Seen' : ' • Sent') : '';
-
     if (msg.fileUrl) {
-      if (msg.fileType === 'image') return `📷 Image${statusText}`;
-      if (msg.fileType === 'video') return `🎥 Video${statusText}`;
-      if (msg.fileType === 'audio') return `🎵 Audio${statusText}`;
-      return `📎 ${msg.fileName || 'File'}${statusText}`;
+      if (msg.fileType === 'image') return '📷 Image';
+      if (msg.fileType === 'video') return '🎥 Video';
+      if (msg.fileType === 'audio') return '🎵 Audio';
+      return `📎 ${msg.fileName || 'File'}`;
     }
-    if (msg.text) return `${msg.text}${statusText}`;
+    if (msg.text) return msg.text;
     return 'No messages yet';
   };
 
@@ -331,9 +328,12 @@ export default function Dashboard({ user, onLogout }) {
         const lastMsg = history[history.length - 1];
         const msgTime = new Date(lastMsg.createdAt || Date.now()).getTime();
 
-        const unread = history.filter(
-          (m) => m.sender === u._id && m.receiver === currentUserId && !m.isRead
-        ).length;
+        const isCurrentlySelected = selectedUserRef.current && selectedUserRef.current._id === u._id;
+        const unread = isCurrentlySelected
+          ? 0
+          : history.filter(
+              (m) => m.sender === u._id && m.receiver === currentUserId && !m.isRead
+            ).length;
 
         setLastMessages((prev) => ({
           ...prev,
@@ -369,6 +369,7 @@ export default function Dashboard({ user, onLogout }) {
       });
 
       markMessagesAsRead(currentUserId, selectedUser._id);
+      setUnreadCounts((prev) => ({ ...prev, [selectedUser._id]: 0 }));
     }
   }, [messages, selectedUser, currentUserId, socket]);
 
@@ -377,6 +378,7 @@ export default function Dashboard({ user, onLogout }) {
     if (!selectedUser || !currentUserId) return;
 
     setShowSettingsPanel(false);
+    setUnreadCounts((prev) => ({ ...prev, [selectedUser._id]: 0 }));
 
     if (socketRef.current) {
       socketRef.current.emit('active_chat_changed', {
@@ -395,6 +397,7 @@ export default function Dashboard({ user, onLogout }) {
     const loadChat = async (isInitialLoad = false) => {
       const history = await fetchConversation(currentUserId, selectedUser._id);
       setMessages(history || []);
+      setUnreadCounts((prev) => ({ ...prev, [selectedUser._id]: 0 }));
 
       if (history && history.length > 0) {
         const lastMsg = history[history.length - 1];
@@ -1457,35 +1460,6 @@ export default function Dashboard({ user, onLogout }) {
                     <Plus size={24} strokeWidth={2.8} />
                   </button>
                 </div>
-
-                {/* Direct Quick Image Picker Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (fileInputRef.current) {
-                      fileInputRef.current.accept = 'image/*';
-                      fileInputRef.current.click();
-                    }
-                  }}
-                  title="Send Photo / Image"
-                  style={{
-                    width: '46px',
-                    height: '46px',
-                    borderRadius: '14px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)',
-                    color: '#ec4899',
-                    boxShadow: '0 2px 8px rgba(236, 72, 153, 0.18)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <ImageIcon size={22} strokeWidth={2.2} />
-                </button>
 
                 <input
                   ref={messageInputRef}
