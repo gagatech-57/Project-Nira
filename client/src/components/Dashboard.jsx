@@ -113,6 +113,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const [profileUpdating, setProfileUpdating] = useState(false);
   const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
   const [profileErrorMsg, setProfileErrorMsg] = useState('');
+  const [editingCard, setEditingCard] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -586,6 +587,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
       if (res && res.success && res.user) {
         setProfileSuccessMsg('✅ Profile details updated successfully!');
+        setEditingCard(null);
         if (onUserUpdate) {
           onUserUpdate(res.user);
         }
@@ -1664,7 +1666,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 boxShadow: '0 12px 30px rgba(15, 23, 42, 0.15)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '22px', flex: 1 }}>
                 <div
                   style={{
                     width: '74px',
@@ -1678,67 +1680,299 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                     fontWeight: '900',
                     fontSize: '2rem',
                     border: '3px solid rgba(255,255,255,0.2)',
+                    flexShrink: 0,
                   }}
                 >
-                  {currentUserName.charAt(0).toUpperCase()}
+                  {(profileName || currentUserName || 'U').charAt(0).toUpperCase()}
                 </div>
-                <div>
-                  <h3 className="font-extrabold" style={{ fontSize: '1.6rem', marginBottom: '4px' }}>
-                    {currentUserName}
-                  </h3>
-                  <p style={{ fontSize: '1rem', color: '#a5b4fc', fontWeight: '800' }}>
-                    @{currentUserHandle}
-                  </p>
-                </div>
+
+                {editingCard === 'hero' ? (
+                  <form onSubmit={handleSaveProfile} style={{ flex: 1, maxWidth: '400px' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#a5b4fc', fontWeight: '800' }}>Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #6366f1', background: '#0f172a', color: '#ffffff', fontWeight: '700', fontSize: '0.92rem' }}
+                      />
+                    </div>
+                    <div style={{ marginBottom: '10px' }}>
+                      <label style={{ fontSize: '0.78rem', color: '#a5b4fc', fontWeight: '800' }}>Username (@handle)</label>
+                      <input
+                        type="text"
+                        required
+                        value={profileUsername}
+                        onChange={(e) => setProfileUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #6366f1', background: '#0f172a', color: '#ffffff', fontWeight: '700', fontSize: '0.92rem' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button type="submit" disabled={profileUpdating} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        {profileUpdating ? 'Saving...' : 'Save Name & Handle'}
+                      </button>
+                      <button type="button" onClick={() => setEditingCard(null)} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div>
+                    <h3 className="font-extrabold" style={{ fontSize: '1.6rem', marginBottom: '4px' }}>
+                      {currentUserName}
+                    </h3>
+                    <p style={{ fontSize: '1rem', color: '#a5b4fc', fontWeight: '800' }}>
+                      @{currentUserHandle}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '20px',
-                  background: 'rgba(16, 185, 129, 0.2)',
-                  border: '1px solid rgba(16, 185, 129, 0.4)',
-                  color: '#34d399',
-                  fontSize: '0.88rem',
-                  fontWeight: '800',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <CheckCircle2 size={18} /> Active Verified Account
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingCard(editingCard === 'hero' ? null : 'hero')}
+                  style={{
+                    background: editingCard === 'hero' ? '#ffffff' : 'rgba(255, 255, 255, 0.15)',
+                    color: editingCard === 'hero' ? '#0f172a' : '#ffffff',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    padding: '8px 16px',
+                    borderRadius: '12px',
+                    fontSize: '0.85rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    backdropFilter: 'blur(6px)',
+                  }}
+                >
+                  <Edit3 size={14} /> {editingCard === 'hero' ? 'Close Edit' : 'Edit Info'}
+                </button>
+
+                <div
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '20px',
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    color: '#34d399',
+                    fontSize: '0.88rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <CheckCircle2 size={18} /> Active Verified Account
+                </div>
               </div>
             </div>
 
             {/* Profile Grid Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Mail size={18} style={{ color: '#4f46e5' }} /> Email Address
+              {/* Card 1: Email Address */}
+              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'email' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Mail size={18} style={{ color: '#4f46e5' }} /> Email Address
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCard(editingCard === 'email' ? null : 'email')}
+                    style={{
+                      background: editingCard === 'email' ? '#4f46e5' : '#f1f5f9',
+                      color: editingCard === 'email' ? '#ffffff' : '#4f46e5',
+                      border: 'none',
+                      padding: '5px 10px',
+                      borderRadius: '10px',
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Edit3 size={13} /> {editingCard === 'email' ? 'Close' : 'Edit'}
+                  </button>
                 </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                  {currentUserEmail}
-                </div>
+
+                {editingCard === 'email' ? (
+                  <form onSubmit={handleSaveProfile} style={{ marginTop: '10px' }}>
+                    <input
+                      type="email"
+                      required
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.92rem', fontWeight: '700', marginBottom: '10px', outline: 'none' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button type="submit" disabled={profileUpdating} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        {profileUpdating ? 'Saving...' : 'Save Email'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                    {currentUserEmail}
+                  </div>
+                )}
               </div>
 
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <User size={18} style={{ color: '#4f46e5' }} /> Gender
+              {/* Card 2: Gender */}
+              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'gender' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <User size={18} style={{ color: '#4f46e5' }} /> Gender
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCard(editingCard === 'gender' ? null : 'gender')}
+                    style={{
+                      background: editingCard === 'gender' ? '#4f46e5' : '#f1f5f9',
+                      color: editingCard === 'gender' ? '#ffffff' : '#4f46e5',
+                      border: 'none',
+                      padding: '5px 10px',
+                      borderRadius: '10px',
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Edit3 size={13} /> {editingCard === 'gender' ? 'Close' : 'Edit'}
+                  </button>
                 </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                  {currentUserGender}
-                </div>
+
+                {editingCard === 'gender' ? (
+                  <form onSubmit={handleSaveProfile} style={{ marginTop: '10px' }}>
+                    <select
+                      value={profileGender}
+                      onChange={(e) => setProfileGender(e.target.value)}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.92rem', fontWeight: '700', marginBottom: '10px', outline: 'none', background: '#ffffff' }}
+                    >
+                      <option value="M">Male (M)</option>
+                      <option value="F">Female (F)</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button type="submit" disabled={profileUpdating} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        {profileUpdating ? 'Saving...' : 'Save Gender'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                    {currentUserGender}
+                  </div>
+                )}
               </div>
 
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Calendar size={18} style={{ color: '#4f46e5' }} /> Age
+              {/* Card 3: Age */}
+              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'age' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Calendar size={18} style={{ color: '#4f46e5' }} /> Age
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCard(editingCard === 'age' ? null : 'age')}
+                    style={{
+                      background: editingCard === 'age' ? '#4f46e5' : '#f1f5f9',
+                      color: editingCard === 'age' ? '#ffffff' : '#4f46e5',
+                      border: 'none',
+                      padding: '5px 10px',
+                      borderRadius: '10px',
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Edit3 size={13} /> {editingCard === 'age' ? 'Close' : 'Edit'}
+                  </button>
                 </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                  {currentUserAge} years old
-                </div>
+
+                {editingCard === 'age' ? (
+                  <form onSubmit={handleSaveProfile} style={{ marginTop: '10px' }}>
+                    <input
+                      type="number"
+                      min="10"
+                      max="120"
+                      value={profileAge}
+                      onChange={(e) => setProfileAge(e.target.value)}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.92rem', fontWeight: '700', marginBottom: '10px', outline: 'none' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button type="submit" disabled={profileUpdating} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        {profileUpdating ? 'Saving...' : 'Save Age'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                    {currentUserAge} years old
+                  </div>
+                )}
               </div>
 
+              {/* Card 4: Mobile Number */}
+              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'mobile' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Phone size={18} style={{ color: '#4f46e5' }} /> Mobile Number
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingCard(editingCard === 'mobile' ? null : 'mobile')}
+                    style={{
+                      background: editingCard === 'mobile' ? '#4f46e5' : '#f1f5f9',
+                      color: editingCard === 'mobile' ? '#ffffff' : '#4f46e5',
+                      border: 'none',
+                      padding: '5px 10px',
+                      borderRadius: '10px',
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Edit3 size={13} /> {editingCard === 'mobile' ? 'Close' : 'Edit'}
+                  </button>
+                </div>
+
+                {editingCard === 'mobile' ? (
+                  <form onSubmit={handleSaveProfile} style={{ marginTop: '10px' }}>
+                    <input
+                      type="tel"
+                      value={profileMobile}
+                      onChange={(e) => setProfileMobile(e.target.value)}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid #cbd5e1', fontSize: '0.92rem', fontWeight: '700', marginBottom: '10px', outline: 'none' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button type="submit" disabled={profileUpdating} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#4f46e5', color: '#ffffff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        {profileUpdating ? 'Saving...' : 'Save Mobile'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                    {currentUserMobile}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Interactive Edit Profile Details Form Card */}
