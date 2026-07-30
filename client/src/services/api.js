@@ -99,12 +99,33 @@ export const postChatMessage = async (sender, receiver, text, isRead = false, fi
   }
 };
 
+// Convert file to base64 data URL — stored directly in MongoDB, survives Render deploys
 export const uploadFile = async (file) => {
-  const formData = new FormData();
-  formData.append('file', file);
-  const response = await fetch(`${BACKEND_BASE}/api/upload`, { method: 'POST', body: formData });
-  if (!response.ok) throw new Error('Upload failed');
-  return await safeJsonParse(response);
+  return new Promise((resolve, reject) => {
+    const MAX_SIZE_MB = 5;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      reject(new Error(`File too large. Max size is ${MAX_SIZE_MB}MB.`));
+      return;
+    }
+
+    const mimeType = file.type;
+    let fileType = 'document';
+    if (mimeType.startsWith('image/')) fileType = 'image';
+    else if (mimeType.startsWith('video/')) fileType = 'video';
+    else if (mimeType.startsWith('audio/')) fileType = 'audio';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      resolve({
+        fileUrl: e.target.result,   // base64 data URL — e.g. "data:image/jpeg;base64,..."
+        fileName: file.name,
+        fileType,
+        fileSize: file.size,
+      });
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
 };
 
 export const markMessagesAsRead = async (readerId, senderId) => {

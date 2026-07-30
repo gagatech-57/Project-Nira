@@ -22,6 +22,7 @@ const io = new Server(server, {
     origin: '*',
     methods: ['GET', 'POST'],
   },
+  maxHttpBufferSize: 20e6, // 20 MB for base64 image messages
 });
 
 // Ensure uploads directory exists
@@ -51,7 +52,8 @@ app.use(
 );
 app.options('*', cors());
 
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
