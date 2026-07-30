@@ -1094,52 +1094,28 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             </div>
           )}
 
-          {/* Top Header Action Button: On mobile, show Settings button; on desktop, show collapse toggle */}
-          {isMobile ? (
-            <button
-              onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-              title="Settings"
-              style={{
-                border: 'none',
-                background: showSettingsPanel ? '#4f46e5' : '#f1f5f9',
-                color: showSettingsPanel ? '#ffffff' : '#4f46e5',
-                padding: '8px 14px',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontWeight: '800',
-                fontSize: '0.85rem',
-                flexShrink: 0,
-                boxShadow: showSettingsPanel ? '0 4px 12px rgba(79,70,229,0.3)' : 'none',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Settings size={18} />
-              <span>Settings</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-              style={{
-                border: 'none',
-                background: '#f1f5f9',
-                color: '#4f46e5',
-                padding: sidebarCollapsed ? '10px' : '9px',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-            </button>
-          )}
+          {/* Top Header Action Button: 3-line icon to open Settings */}
+          <button
+            onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+            title={showSettingsPanel ? 'Close Settings' : 'Settings'}
+            style={{
+              border: 'none',
+              background: showSettingsPanel ? '#4f46e5' : '#f1f5f9',
+              color: showSettingsPanel ? '#ffffff' : '#4f46e5',
+              padding: '9px 12px',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              flexShrink: 0,
+              boxShadow: showSettingsPanel ? '0 4px 12px rgba(79,70,229,0.3)' : 'none',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <MenuLinesIcon size={20} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
+          </button>
         </div>
 
         {/* User Search Input Box */}
@@ -1582,87 +1558,6 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               })
           )}
         </div>
-
-        {/* BOTTOM SETTINGS & LOGOUT AREA */}
-        <div
-          style={{
-            padding: sidebarCollapsed ? '14px 8px' : '14px 16px',
-            height: '72px',
-            boxSizing: 'border-box',
-            borderTop: '1px solid #e2e8f0',
-            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-            gap: '8px',
-            flexShrink: 0,
-          }}
-        >
-          {/* Settings Button */}
-          <button
-            onClick={() => {
-              setShowSettingsPanel((prev) => !prev);
-            }}
-            title="User Profile & Settings"
-            style={{
-              border: 'none',
-              background: showSettingsPanel
-                ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
-                : 'linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)',
-              color: showSettingsPanel ? '#ffffff' : '#4f46e5',
-              padding: sidebarCollapsed ? '0' : '10px 14px',
-              width: sidebarCollapsed ? '42px' : 'auto',
-              height: '42px',
-              borderRadius: '14px',
-              fontWeight: '800',
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              whiteSpace: 'nowrap',
-              flex: sidebarCollapsed ? 'none' : 1,
-              boxShadow: showSettingsPanel
-                ? '0 4px 14px rgba(79, 70, 229, 0.3)'
-                : '0 2px 6px rgba(79, 70, 229, 0.08)',
-              transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-          >
-            <MenuLinesIcon size={19} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
-            {!sidebarCollapsed && <span>Settings</span>}
-          </button>
-
-          {/* Logout Button (HIDDEN WHEN COLLAPSED) */}
-          {!sidebarCollapsed && (
-            <button
-              onClick={onLogout}
-              title="Sign Out"
-              style={{
-                border: '1.5px solid #fecaca',
-                background: '#fef2f2',
-                color: '#ef4444',
-                padding: '10px 14px',
-                height: '42px',
-                borderRadius: '14px',
-                fontWeight: '800',
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                whiteSpace: 'nowrap',
-                flex: 1,
-                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
-                transition: 'all 0.22s ease',
-              }}
-            >
-              <LogOut size={18} strokeWidth={2.5} />
-              <span>Logout</span>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* RIGHT MAIN AREA (FULL PAGE CHAT OR SETTINGS DASHBOARD) */}
@@ -1688,31 +1583,29 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
           >
             {/* Clean Settings Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px' }}>
-              {/* Mobile back to list button */}
-              {isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setShowSettingsPanel(false)}
-                  style={{
-                    background: '#4f46e5',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '14px',
-                    padding: '9px 16px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontWeight: '800',
-                    fontSize: '0.9rem',
-                    flexShrink: 0,
-                    boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)',
-                  }}
-                >
-                  <ArrowLeft size={18} strokeWidth={2.5} />
-                  <span>Back</span>
-                </button>
-              )}
+              {/* Back to chat/list button */}
+              <button
+                type="button"
+                onClick={() => setShowSettingsPanel(false)}
+                style={{
+                  background: '#4f46e5',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '14px',
+                  padding: '9px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: '800',
+                  fontSize: '0.9rem',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)',
+                }}
+              >
+                <ArrowLeft size={18} strokeWidth={2.5} />
+                <span>Back</span>
+              </button>
               <div
                 style={{
                   width: '46px',
@@ -2104,6 +1997,34 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 }}
               >
                 <Trash2 size={16} /> Delete My Account
+              </button>
+            </div>
+
+            {/* Log Out Button Card */}
+            <div style={{ marginTop: '20px', marginBottom: '10px' }}>
+              <button
+                type="button"
+                onClick={onLogout}
+                style={{
+                  width: '100%',
+                  padding: '14px 24px',
+                  borderRadius: '16px',
+                  border: '1.5px solid #fecaca',
+                  background: '#fef2f2',
+                  color: '#ef4444',
+                  fontWeight: '800',
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <LogOut size={20} strokeWidth={2.5} />
+                <span>Log Out of Account</span>
               </button>
             </div>
           </div>
