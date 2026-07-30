@@ -1013,12 +1013,12 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
       }}
     >
       {/* LEFT SIDEBAR: Search Users & User Directory */}
-      {/* On mobile: only show sidebar when no user is selected */}
+      {/* On mobile: hide sidebar when a user is selected OR when Settings is open */}
       <div
         style={{
           background: '#f8fafc',
           borderRight: isMobile ? 'none' : '1px solid #e2e8f0',
-          display: isMobile && selectedUser ? 'none' : 'flex',
+          display: isMobile && (selectedUser || showSettingsPanel) ? 'none' : 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
         }}
@@ -1606,21 +1606,6 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 <ArrowLeft size={18} strokeWidth={2.5} />
                 <span>Back</span>
               </button>
-              <div
-                style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '14px',
-                  background: 'rgba(79, 70, 229, 0.1)',
-                  color: '#4f46e5',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Settings size={24} />
-              </div>
               <div>
                 <h2 className="font-extrabold" style={{ fontSize: isMobile ? '1.25rem' : '1.6rem', color: '#0f172a' }}>
                   Account Profile & Settings
