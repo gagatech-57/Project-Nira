@@ -27,12 +27,17 @@ export default function App() {
     localStorage.removeItem('chat_app_user');
   };
 
+  const handleUserUpdate = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem('chat_app_user', JSON.stringify(updatedUser));
+  };
+
   return (
     <div className="app-container">
       {!currentUser ? (
         <AuthPage onLoginSuccess={handleLoginSuccess} />
       ) : (
-        <Dashboard user={currentUser} onLogout={handleLogout} />
+        <Dashboard user={currentUser} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
       )}
     </div>
   );

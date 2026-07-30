@@ -597,6 +597,122 @@ router.post('/delete-account', async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/update-profile
+router.post('/update-profile', async (req, res) => {
+  try {
+    const { userId, name, username, email, gender, mobile, age } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+
+    if (!name || !username || !email) {
+      return res.status(400).json({ success: false, message: 'Name, Username and Email are required fields' });
+    }
+
+    const cleanUsername = username.replace(/^@/, '').toLowerCase().replace(/[^a-z0-9_.]/g, '').trim();
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanName = name.trim();
+    const cleanMobile = mobile ? String(mobile).trim() : '';
+
+    let normalizedGender = (gender || 'Other').toUpperCase();
+    if (normalizedGender === 'M' || normalizedGender === 'MALE') normalizedGender = 'M';
+    else if (normalizedGender === 'F' || normalizedGender === 'FEMALE') normalizedGender = 'F';
+    else normalizedGender = 'Other';
+
+    const parsedAge = age ? parseInt(age, 10) : 20;
+
+    const isMongoConnected = mongoose.connection.readyState === 1;
+
+    if (isMongoConnected) {
+      // Check if username is already taken by another user
+      const existingUser = await User.findOne({
+        _id: { $ne: userId },
+        username: cleanUsername,
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: `Username @${cleanUsername} is already taken! Please choose a different unique username.`,
+        });
+      }
+
+      // Check if email is already taken by another user
+      const existingEmail = await User.findOne({
+        _id: { $ne: userId },
+        email: cleanEmail,
+      });
+
+      if (existingEmail) {
+        return res.status(400).json({
+          success: false,
+          message: `Email address ${cleanEmail} is already registered to another account.`,
+        });
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        {
+          name: cleanName,
+          username: cleanUsername,
+          email: cleanEmail,
+          gender: normalizedGender,
+          mobile: cleanMobile,
+          age: parsedAge,
+        },
+        { new: true }
+      ).select('-password');
+
+      if (!updatedUser) {
+        return res.status(404).json({ success: false, message: 'User account not found' });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Profile details updated successfully!',
+        user: updatedUser,
+      });
+    } else {
+      // Memory Mode
+      const existingUser = memoryUsers.find(
+        (u) => u._id !== userId && u.username === cleanUsername
+      );
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: `Username @${cleanUsername} is already taken! Please choose a different unique username.`,
+        });
+      }
+
+      const userIndex = memoryUsers.findIndex((u) => u._id === userId);
+      if (userIndex !== -1) {
+        memoryUsers[userIndex] = {
+          ...memoryUsers[userIndex],
+          name: cleanName,
+          username: cleanUsername,
+          email: cleanEmail,
+          gender: normalizedGender,
+          mobile: cleanMobile,
+          age: parsedAge,
+        };
+        const { password, ...userWithoutPassword } = memoryUsers[userIndex];
+        return res.json({
+          success: true,
+          message: 'Profile details updated successfully!',
+          user: userWithoutPassword,
+        });
+      }
+
+      return res.status(404).json({ success: false, message: 'User account not found' });
+    }
+  } catch (error) {
+    console.error('Update Profile Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update profile details' });
+  }
+});
+
 // @route   GET /api/auth/messages/:user1/:user2
 router.get('/messages/:user1/:user2', async (req, res) => {
   try {

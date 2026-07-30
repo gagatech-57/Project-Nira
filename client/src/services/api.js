@@ -243,3 +243,17 @@ export const deleteUserAccount = async (userId, password, deleteMessages = false
     throw error;
   }
 };
+
+export const updateUserProfile = async (userId, profileData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/update-profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, ...profileData }),
+    });
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};

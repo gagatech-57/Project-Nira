@@ -46,6 +46,7 @@ import {
   fetchConnectionStatus,
   disconnectConnection,
   deleteUserAccount,
+  updateUserProfile,
 } from '../services/api';
 import {
   UserCheck,
@@ -94,13 +95,35 @@ const getFileUrl = (url) => {
   return `${cleanBase}${cleanUrl}`;
 };
 
-export default function Dashboard({ user, onLogout }) {
+export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [usersList, setUsersList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
+
+  // Profile Editing Form States
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileUsername, setProfileUsername] = useState(user?.username || '');
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
+  const [profileGender, setProfileGender] = useState(user?.gender || 'M');
+  const [profileMobile, setProfileMobile] = useState(user?.mobile || '');
+  const [profileAge, setProfileAge] = useState(user?.age || '');
+  const [profileUpdating, setProfileUpdating] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+  const [profileErrorMsg, setProfileErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || '');
+      setProfileUsername(user.username || '');
+      setProfileEmail(user.email || '');
+      setProfileGender(user.gender || 'M');
+      setProfileMobile(user.mobile || '');
+      setProfileAge(user.age || '');
+    }
+  }, [user]);
 
   // Disconnect & Delete Account Modal States
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
@@ -537,6 +560,42 @@ export default function Dashboard({ user, onLogout }) {
       }
     } catch (err) {
       setDeleteAccountError('Failed to delete account. Please check your password.');
+    }
+  };
+
+  const handleSaveProfile = async (e) => {
+    if (e) e.preventDefault();
+    setProfileSuccessMsg('');
+    setProfileErrorMsg('');
+
+    if (!profileName.trim() || !profileUsername.trim() || !profileEmail.trim()) {
+      setProfileErrorMsg('⚠️ Name, Username, and Email are required.');
+      return;
+    }
+
+    setProfileUpdating(true);
+    try {
+      const res = await updateUserProfile(currentUserId, {
+        name: profileName.trim(),
+        username: profileUsername.trim().toLowerCase(),
+        email: profileEmail.trim().toLowerCase(),
+        gender: profileGender,
+        mobile: profileMobile,
+        age: profileAge,
+      });
+
+      if (res && res.success && res.user) {
+        setProfileSuccessMsg('✅ Profile details updated successfully!');
+        if (onUserUpdate) {
+          onUserUpdate(res.user);
+        }
+      } else {
+        setProfileErrorMsg(res?.message || 'Failed to update profile details.');
+      }
+    } catch (err) {
+      setProfileErrorMsg('An error occurred while updating profile.');
+    } finally {
+      setProfileUpdating(false);
     }
   };
 
@@ -1680,14 +1739,228 @@ export default function Dashboard({ user, onLogout }) {
                 </div>
               </div>
 
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Phone size={18} style={{ color: '#4f46e5' }} /> Mobile Number
-                </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                  {currentUserMobile}
-                </div>
+            </div>
+
+            {/* Interactive Edit Profile Details Form Card */}
+            <div
+              style={{
+                marginTop: '28px',
+                background: '#ffffff',
+                padding: '28px',
+                borderRadius: '24px',
+                border: '1.5px solid #e2e8f0',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                <Edit3 size={22} style={{ color: '#4f46e5' }} />
+                <h3 className="font-extrabold" style={{ fontSize: '1.25rem', color: '#0f172a' }}>
+                  Edit Profile Details
+                </h3>
               </div>
+
+              {profileSuccessMsg && (
+                <div
+                  style={{
+                    background: '#f0fdf4',
+                    color: '#166534',
+                    border: '1px solid #bbf7d0',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    fontSize: '0.88rem',
+                    fontWeight: '800',
+                    marginBottom: '18px',
+                  }}
+                >
+                  {profileSuccessMsg}
+                </div>
+              )}
+
+              {profileErrorMsg && (
+                <div
+                  style={{
+                    background: '#fef2f2',
+                    color: '#991b1b',
+                    border: '1px solid #fecaca',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    fontSize: '0.88rem',
+                    fontWeight: '800',
+                    marginBottom: '18px',
+                  }}
+                >
+                  {profileErrorMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveProfile}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  {/* Full Name */}
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', display: 'block' }}>
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      placeholder="Your name..."
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.92rem',
+                        fontWeight: '700',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Username (Unique Handle) */}
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', display: 'block' }}>
+                      Username (@handle) *
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '900', color: '#64748b' }}>
+                        @
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        value={profileUsername}
+                        onChange={(e) => setProfileUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''))}
+                        placeholder="unique username..."
+                        style={{
+                          width: '100%',
+                          padding: '11px 14px 11px 30px',
+                          borderRadius: '12px',
+                          border: '1.5px solid #cbd5e1',
+                          fontSize: '0.92rem',
+                          fontWeight: '700',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', display: 'block' }}>
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      placeholder="your.email@domain.com..."
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.92rem',
+                        fontWeight: '700',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Gender */}
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', display: 'block' }}>
+                      Gender
+                    </label>
+                    <select
+                      value={profileGender}
+                      onChange={(e) => setProfileGender(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.92rem',
+                        fontWeight: '700',
+                        outline: 'none',
+                        background: '#ffffff',
+                      }}
+                    >
+                      <option value="M">Male (M)</option>
+                      <option value="F">Female (F)</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Mobile Number */}
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', display: 'block' }}>
+                      Mobile Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={profileMobile}
+                      onChange={(e) => setProfileMobile(e.target.value)}
+                      placeholder="Mobile number..."
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.92rem',
+                        fontWeight: '700',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Age */}
+                  <div>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', display: 'block' }}>
+                      Age
+                    </label>
+                    <input
+                      type="number"
+                      min="10"
+                      max="120"
+                      value={profileAge}
+                      onChange={(e) => setProfileAge(e.target.value)}
+                      placeholder="Age..."
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '0.92rem',
+                        fontWeight: '700',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="submit"
+                    disabled={profileUpdating}
+                    style={{
+                      background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '12px 28px',
+                      borderRadius: '14px',
+                      fontWeight: '800',
+                      fontSize: '0.92rem',
+                      cursor: profileUpdating ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 14px rgba(79,70,229,0.3)',
+                    }}
+                  >
+                    {profileUpdating ? 'Saving Changes...' : 'Save Profile Changes'}
+                  </button>
+                </div>
+              </form>
             </div>
 
             {/* Danger Zone: Delete Account */}
