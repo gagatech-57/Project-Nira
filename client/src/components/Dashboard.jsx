@@ -1462,7 +1462,9 @@ export default function Dashboard({ user, onLogout }) {
         {/* BOTTOM SETTINGS & LOGOUT AREA */}
         <div
           style={{
-            padding: sidebarCollapsed ? '12px 6px' : '14px 16px',
+            padding: sidebarCollapsed ? '14px 6px' : '14px 18px',
+            height: '72px',
+            boxSizing: 'border-box',
             borderTop: '1px solid #e2e8f0',
             background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
             display: 'flex',
@@ -1500,7 +1502,7 @@ export default function Dashboard({ user, onLogout }) {
               transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
-            <Sliders size={18} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
+            <MenuLinesIcon size={19} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
             {!sidebarCollapsed && 'Settings'}
           </button>
 
@@ -2128,7 +2130,9 @@ export default function Dashboard({ user, onLogout }) {
               <form
                 onSubmit={handleSendMessage}
                 style={{
-                  padding: '16px 28px',
+                  padding: '14px 28px',
+                  height: '72px',
+                  boxSizing: 'border-box',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
