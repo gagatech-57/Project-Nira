@@ -167,9 +167,18 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   // Mobile Responsive State
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+    handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
   }, []);
 
   // Onboarding Tour State
@@ -1727,9 +1736,16 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
         display: isMobile && !selectedUser && !showSettingsPanel ? 'none' : 'flex',
         flexDirection: 'column',
         background: '#ffffff',
-        height: '100%',
+        height: isMobile ? 'calc(var(--vh, 1vh) * 100)' : '100%',
+        width: '100%',
         minHeight: 0,
         overflow: 'hidden',
+        position: isMobile ? 'fixed' : 'relative',
+        top: isMobile ? 0 : undefined,
+        left: isMobile ? 0 : undefined,
+        right: isMobile ? 0 : undefined,
+        bottom: isMobile ? 0 : undefined,
+        zIndex: isMobile ? 9999 : undefined,
       }}>
         {showSettingsPanel ? (
           /* SETTINGS DASHBOARD OPENED DIRECTLY IN RIGHT PANEL */
@@ -2792,12 +2808,15 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               <form
                 onSubmit={handleSendMessage}
                 style={{
-                  padding: isMobile ? '10px 12px' : '14px 28px',
-                  height: isMobile ? '62px' : '72px',
+                  padding: isMobile ? '10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) 12px' : '14px 28px',
                   boxSizing: 'border-box',
                   display: 'flex',
                   alignItems: 'center',
                   gap: isMobile ? '8px' : '12px',
+                  background: '#ffffff',
+                  borderTop: '1px solid #e2e8f0',
+                  flexShrink: 0,
+                  zIndex: 10,
                 }}
               >
                 {/* Styled + Button with Attachment Options Popover */}
