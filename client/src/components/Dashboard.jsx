@@ -157,6 +157,23 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Onboarding Tour State
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  useEffect(() => {
+    const key = `nira_onboarding_done_${currentUserId}`;
+    if (!localStorage.getItem(key)) {
+      // Small delay so UI is ready
+      const t = setTimeout(() => setShowOnboarding(true), 800);
+      return () => clearTimeout(t);
+    }
+  }, [currentUserId]);
+  const closeOnboarding = () => {
+    setShowOnboarding(false);
+    setOnboardingStep(0);
+    localStorage.setItem(`nira_onboarding_done_${currentUserId}`, '1');
+  };
+
   // File upload states
   const [selectedFile, setSelectedFile] = useState(null);       // { file, previewUrl, name, type, size }
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -3354,6 +3371,272 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
           </div>
         )}
       </div>
+
+      {/* ====== ONBOARDING TOUR POPUP ====== */}
+      {showOnboarding && (() => {
+        const steps = [
+          {
+            emoji: '👋',
+            title: 'Welcome to Nira Chat!',
+            desc: 'Nira Chat is a real-time messaging app where you can connect and chat with friends. This quick guide will walk you through how everything works — takes just 30 seconds!',
+            color: '#4f46e5',
+          },
+          {
+            emoji: '🔍',
+            title: 'Search & Find Users',
+            desc: 'Use the Search box on the left sidebar and type any @username or name to find other Nira users. Their profile card will appear in the list below.',
+            color: '#0ea5e9',
+          },
+          {
+            emoji: '🔗',
+            title: 'Send a Connect Request',
+            desc: 'Click on any user from the list. If you are not yet connected, click the "Connect" button to send them a connection request. Once they accept, you can start chatting!',
+            color: '#8b5cf6',
+          },
+          {
+            emoji: '💬',
+            title: 'Start Chatting',
+            desc: 'Once connected, click on their name in your chat list to open the conversation. Type your message in the input bar at the bottom and press Send (or hit Enter).',
+            color: '#10b981',
+          },
+          {
+            emoji: '📎',
+            title: 'Share Images & Files',
+            desc: 'Click the "+" button next to the message input to attach images, videos, audio or documents. Sent files are stored securely and always visible in chat.',
+            color: '#f59e0b',
+          },
+          {
+            emoji: '✏️',
+            title: 'Edit & Delete Messages',
+            desc: 'Hover over any message you sent to see Edit (✏️) and Delete (🗑️) options. You can correct typos or remove messages anytime.',
+            color: '#ec4899',
+          },
+          {
+            emoji: '⚙️',
+            title: 'Settings Panel',
+            desc: 'Click the "Settings" button at the bottom of the left sidebar. There you can edit your Name, Username, Email, Gender, Mobile, Age — and even change your password or delete your account.',
+            color: '#64748b',
+          },
+          {
+            emoji: '🤖',
+            title: 'Meet Nira Bot',
+            desc: 'Nira Bot is your built-in assistant! It automatically shows in your chat list and sends you a helpful onboarding guide. You can always chat with it for tips.',
+            color: '#7c3aed',
+          },
+          {
+            emoji: '❓',
+            title: 'Need Help Anytime?',
+            desc: 'Click the floating "?" button at the bottom-right of the screen anytime to re-open this guide. You are all set — enjoy Nira Chat! 🎉',
+            color: '#4f46e5',
+          },
+        ];
+        const step = steps[onboardingStep];
+        const isLast = onboardingStep === steps.length - 1;
+        return (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(2, 6, 23, 0.7)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+            }}
+          >
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: '28px',
+                padding: '40px 36px 32px',
+                maxWidth: '480px',
+                width: '100%',
+                boxShadow: '0 32px 80px rgba(0,0,0,0.25)',
+                position: 'relative',
+                animation: 'fadeSlideIn 0.3s ease',
+              }}
+            >
+              {/* Step progress dots */}
+              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '28px' }}>
+                {steps.map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: i === onboardingStep ? '24px' : '8px',
+                      height: '8px',
+                      borderRadius: '6px',
+                      background: i === onboardingStep ? step.color : '#e2e8f0',
+                      transition: 'all 0.3s ease',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Emoji icon */}
+              <div
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '24px',
+                  background: `${step.color}18`,
+                  border: `2px solid ${step.color}30`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '2.4rem',
+                  margin: '0 auto 20px',
+                }}
+              >
+                {step.emoji}
+              </div>
+
+              {/* Step counter pill */}
+              <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+                <span
+                  style={{
+                    background: `${step.color}15`,
+                    color: step.color,
+                    padding: '4px 14px',
+                    borderRadius: '20px',
+                    fontSize: '0.78rem',
+                    fontWeight: '800',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Step {onboardingStep + 1} of {steps.length}
+                </span>
+              </div>
+
+              {/* Title */}
+              <h2
+                style={{
+                  textAlign: 'center',
+                  fontSize: '1.5rem',
+                  fontWeight: '900',
+                  color: '#0f172a',
+                  marginBottom: '14px',
+                  lineHeight: 1.2,
+                }}
+              >
+                {step.title}
+              </h2>
+
+              {/* Description */}
+              <p
+                style={{
+                  textAlign: 'center',
+                  color: '#475569',
+                  fontSize: '0.97rem',
+                  lineHeight: 1.65,
+                  fontWeight: '600',
+                  marginBottom: '32px',
+                }}
+              >
+                {step.desc}
+              </p>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {onboardingStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setOnboardingStep((s) => s - 1)}
+                    style={{
+                      flex: 1,
+                      padding: '13px',
+                      borderRadius: '14px',
+                      border: '1.5px solid #e2e8f0',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontWeight: '800',
+                      fontSize: '0.92rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ← Back
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isLast) { closeOnboarding(); }
+                    else { setOnboardingStep((s) => s + 1); }
+                  }}
+                  style={{
+                    flex: 2,
+                    padding: '13px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: `linear-gradient(135deg, ${step.color} 0%, ${step.color}cc 100%)`,
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    boxShadow: `0 6px 20px ${step.color}40`,
+                  }}
+                >
+                  {isLast ? '🎉 Got it, Let me Explore!' : 'Next →'}
+                </button>
+              </div>
+
+              {/* Skip link */}
+              {!isLast && (
+                <button
+                  type="button"
+                  onClick={closeOnboarding}
+                  style={{
+                    display: 'block',
+                    margin: '18px auto 0',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    fontSize: '0.84rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Skip guide
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ====== FLOATING ? HELP BUTTON ====== */}
+      <button
+        type="button"
+        onClick={() => { setShowOnboarding(true); setOnboardingStep(0); }}
+        title="Help & Guide"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+          color: '#ffffff',
+          border: 'none',
+          fontSize: '1.35rem',
+          fontWeight: '900',
+          cursor: 'pointer',
+          boxShadow: '0 8px 24px rgba(79,70,229,0.45)',
+          zIndex: 9998,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.12)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+      >
+        ?
+      </button>
     </div>
   );
 }
