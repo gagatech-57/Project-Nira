@@ -47,7 +47,23 @@ import {
   disconnectConnection,
   deleteUserAccount,
 } from '../services/api';
-import { UserCheck, UserPlus, Clock, Check, UserX, Unlink, UserMinus, ShieldAlert, Sliders, MessageCircle } from 'lucide-react';
+import {
+  UserCheck,
+  UserPlus,
+  Clock,
+  Check,
+  UserX,
+  Unlink,
+  UserMinus,
+  ShieldAlert,
+  SlidersHorizontal,
+  Settings2,
+  Power,
+  Sidebar,
+  PanelLeft,
+  MessageCircle,
+  MessageSquareText,
+} from 'lucide-react';
 
 const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
   <svg
@@ -998,7 +1014,6 @@ export default function Dashboard({ user, onLogout }) {
 
           {/* Top Toggle Sidebar Button */}
           <button
-
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
             style={{
@@ -1012,9 +1027,10 @@ export default function Dashboard({ user, onLogout }) {
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              transition: 'all 0.2s ease',
             }}
           >
-            {sidebarCollapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={20} />}
+            <Sidebar size={20} />
           </button>
         </div>
 
@@ -1061,7 +1077,7 @@ export default function Dashboard({ user, onLogout }) {
                 transition: 'all 0.2s ease',
               }}
             >
-              <MessageSquare size={16} /> Chats
+              <MessageSquareText size={16} /> Chats
             </button>
 
             <button
@@ -1085,7 +1101,7 @@ export default function Dashboard({ user, onLogout }) {
                 transition: 'all 0.2s ease',
               }}
             >
-              <UserPlus size={16} /> Requests
+              <UserCheck size={16} /> Requests
               {pendingRequests.length > 0 && (
                 <span
                   style={{
@@ -1525,7 +1541,7 @@ export default function Dashboard({ user, onLogout }) {
               transition: 'all 0.22s ease',
             }}
           >
-            <LogOut size={18} strokeWidth={2.5} />
+            <Power size={18} strokeWidth={2.5} />
           </button>
         </div>
       </div>
