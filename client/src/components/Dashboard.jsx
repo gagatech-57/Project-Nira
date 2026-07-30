@@ -1095,26 +1095,52 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             </div>
           )}
 
-          {/* Top Toggle Sidebar Button */}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            style={{
-              border: 'none',
-              background: '#f1f5f9',
-              color: '#4f46e5',
-              padding: sidebarCollapsed ? '10px' : '9px',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-          </button>
+          {/* Top Header Action Button: On mobile, show Settings button; on desktop, show collapse toggle */}
+          {isMobile ? (
+            <button
+              onClick={() => setShowSettingsPanel(!showSettingsPanel)}
+              title="Settings"
+              style={{
+                border: 'none',
+                background: showSettingsPanel ? '#4f46e5' : '#f1f5f9',
+                color: showSettingsPanel ? '#ffffff' : '#4f46e5',
+                padding: '8px 14px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: '800',
+                fontSize: '0.85rem',
+                flexShrink: 0,
+                boxShadow: showSettingsPanel ? '0 4px 12px rgba(79,70,229,0.3)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Settings size={18} />
+              <span>Settings</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+              style={{
+                border: 'none',
+                background: '#f1f5f9',
+                color: '#4f46e5',
+                padding: sidebarCollapsed ? '10px' : '9px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            </button>
+          )}
         </div>
 
         {/* User Search Input Box */}
@@ -1669,18 +1695,23 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   type="button"
                   onClick={() => setShowSettingsPanel(false)}
                   style={{
-                    background: '#f1f5f9',
+                    background: '#4f46e5',
+                    color: '#ffffff',
                     border: 'none',
-                    borderRadius: '12px',
-                    padding: '8px 10px',
+                    borderRadius: '14px',
+                    padding: '9px 16px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    color: '#0f172a',
+                    gap: '6px',
+                    fontWeight: '800',
+                    fontSize: '0.9rem',
                     flexShrink: 0,
+                    boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)',
                   }}
                 >
-                  <ArrowLeft size={20} strokeWidth={2.5} />
+                  <ArrowLeft size={18} strokeWidth={2.5} />
+                  <span>Back</span>
                 </button>
               )}
               <div
@@ -1693,15 +1724,16 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
                 <Settings size={24} />
               </div>
               <div>
-                <h2 className="font-extrabold" style={{ fontSize: '1.6rem', color: '#0f172a' }}>
+                <h2 className="font-extrabold" style={{ fontSize: isMobile ? '1.25rem' : '1.6rem', color: '#0f172a' }}>
                   Account Profile & Settings
                 </h2>
-                <p style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '600' }}>
+                <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#64748b', fontWeight: '600' }}>
                   Manage your personal account details & handle
                 </p>
               </div>
@@ -1712,11 +1744,13 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               style={{
                 background: 'linear-gradient(135deg, #020617 0%, #1e1b4b 100%)',
                 borderRadius: '24px',
-                padding: '32px',
+                padding: isMobile ? '20px' : '32px',
                 color: '#ffffff',
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'flex-start' : 'center',
                 justifyContent: 'space-between',
+                gap: isMobile ? '16px' : '0',
                 marginBottom: '28px',
                 boxShadow: '0 12px 30px rgba(15, 23, 42, 0.15)',
               }}
@@ -1826,7 +1860,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             </div>
 
             {/* Profile Grid Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '14px' : '20px' }}>
               {/* Card 1: Email Address */}
               <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'email' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
