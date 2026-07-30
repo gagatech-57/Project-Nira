@@ -3546,36 +3546,38 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
         );
       })()}
 
-      {/* ====== FLOATING ? HELP BUTTON ====== */}
-      <button
-        type="button"
-        onClick={() => { setShowOnboarding(true); setOnboardingStep(0); }}
-        title="Help & Guide"
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '50px',
-          height: '50px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-          color: '#ffffff',
-          border: 'none',
-          fontSize: '1.35rem',
-          fontWeight: '900',
-          cursor: 'pointer',
-          boxShadow: '0 8px 24px rgba(79,70,229,0.45)',
-          zIndex: 9998,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.12)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-      >
-        ?
-      </button>
+      {/* ====== FLOATING ? HELP BUTTON (Hidden inside active chat message area to avoid overlapping Send button) ====== */}
+      {(!selectedUser || showSettingsPanel) && (
+        <button
+          type="button"
+          onClick={() => { setShowOnboarding(true); setOnboardingStep(0); }}
+          title="Help & Guide"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            width: '50px',
+            height: '50px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+            color: '#ffffff',
+            border: 'none',
+            fontSize: '1.35rem',
+            fontWeight: '900',
+            cursor: 'pointer',
+            boxShadow: '0 8px 24px rgba(79,70,229,0.45)',
+            zIndex: 9998,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.12)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+        >
+          ?
+        </button>
+      )}
     </div>
   );
 }
