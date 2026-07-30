@@ -509,6 +509,83 @@ router.get('/connections/status/:userId/:targetId', async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/connections/disconnect
+router.post('/connections/disconnect', async (req, res) => {
+  try {
+    const { userId, targetId, deleteMessages } = req.body;
+    if (!userId || !targetId) {
+      return res.status(400).json({ success: false, message: 'userId and targetId are required' });
+    }
+
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    if (isMongoConnected) {
+      await ConnectionRequest.deleteMany({
+        $or: [
+          { sender: userId, receiver: targetId },
+          { sender: targetId, receiver: userId },
+        ],
+      });
+
+      if (deleteMessages) {
+        await Message.deleteMany({
+          $or: [
+            { sender: userId, receiver: targetId },
+            { sender: targetId, receiver: userId },
+          ],
+        });
+        console.log(`🧹 Deleted all messages between ${userId} and ${targetId}`);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Successfully disconnected connection',
+        deleteMessages: Boolean(deleteMessages),
+      });
+    }
+
+    return res.json({ success: true, message: 'Disconnected (memory mode)' });
+  } catch (error) {
+    console.error('Disconnect Connection Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to disconnect connection' });
+  }
+});
+
+// @route   POST /api/auth/delete-account
+router.post('/delete-account', async (req, res) => {
+  try {
+    const { userId, deleteMessages } = req.body;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' });
+    }
+
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    if (isMongoConnected) {
+      await User.findByIdAndDelete(userId);
+
+      await ConnectionRequest.deleteMany({
+        $or: [{ sender: userId }, { receiver: userId }],
+      });
+
+      if (deleteMessages) {
+        await Message.deleteMany({
+          $or: [{ sender: userId }, { receiver: userId }],
+        });
+        console.log(`🧹 Deleted all messages for user ${userId}`);
+      }
+
+      return res.json({
+        success: true,
+        message: 'Account deleted successfully',
+      });
+    }
+
+    return res.json({ success: true, message: 'Account deleted (memory mode)' });
+  } catch (error) {
+    console.error('Delete Account Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete account' });
+  }
+});
+
 // @route   GET /api/auth/messages/:user1/:user2
 router.get('/messages/:user1/:user2', async (req, res) => {
   try {

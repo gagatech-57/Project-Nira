@@ -44,8 +44,10 @@ import {
   respondConnectionRequest,
   fetchConnectedUsers,
   fetchConnectionStatus,
+  disconnectConnection,
+  deleteUserAccount,
 } from '../services/api';
-import { UserCheck, UserPlus, Clock, Check, UserX } from 'lucide-react';
+import { UserCheck, UserPlus, Clock, Check, UserX, Unlink, UserMinus, ShieldAlert } from 'lucide-react';
 
 const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
   <svg
@@ -83,6 +85,12 @@ export default function Dashboard({ user, onLogout }) {
   const [usersList, setUsersList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
+
+  // Disconnect & Delete Account Modal States
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [deleteDisconnectMessages, setDeleteDisconnectMessages] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deleteAccountMessages, setDeleteAccountMessages] = useState(false);
   const [lastMessages, setLastMessages] = useState({});
   const [unreadCounts, setUnreadCounts] = useState({});
   const [lastMessageTimestamps, setLastMessageTimestamps] = useState({});
@@ -450,6 +458,57 @@ export default function Dashboard({ user, onLogout }) {
       }
     } catch (err) {
       console.error('Error responding to request:', err);
+    }
+  };
+
+  const handleExecuteDisconnect = async () => {
+    if (!selectedUser || !currentUserId) return;
+    const target = selectedUser;
+    setShowDisconnectModal(false);
+
+    try {
+      await disconnectConnection(currentUserId, target._id, deleteDisconnectMessages);
+
+      if (deleteDisconnectMessages) {
+        setMessages([]);
+      }
+      setDeleteDisconnectMessages(false);
+
+      const connected = await fetchConnectedUsers(currentUserId);
+      const filtered = connected.filter(
+        (u) =>
+          String(u._id || u.id) !== String(currentUserId) &&
+          u.username?.toLowerCase() !== currentUserHandle &&
+          u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
+      );
+      setUsersList(filtered);
+
+      if (filtered.length > 0) {
+        setSelectedUser(filtered[0]);
+      } else {
+        setSelectedUser(null);
+      }
+
+      if (socket) {
+        socket.emit('respond_connection_request', {
+          senderId: target._id,
+          receiverId: currentUserId,
+          action: 'disconnected',
+        });
+      }
+    } catch (err) {
+      console.error('Error disconnecting connection:', err);
+    }
+  };
+
+  const handleExecuteDeleteAccount = async () => {
+    if (!currentUserId) return;
+    try {
+      await deleteUserAccount(currentUserId, deleteAccountMessages);
+      setShowDeleteAccountModal(false);
+      onLogout();
+    } catch (err) {
+      console.error('Error deleting account:', err);
     }
   };
 
@@ -1603,6 +1662,50 @@ export default function Dashboard({ user, onLogout }) {
                 </div>
               </div>
             </div>
+
+            {/* Danger Zone: Delete Account */}
+            <div
+              style={{
+                marginTop: '28px',
+                background: '#fff1f2',
+                padding: '24px',
+                borderRadius: '20px',
+                border: '1.5px solid #fecdd3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <h4 className="font-extrabold" style={{ fontSize: '1.1rem', color: '#be123c', marginBottom: '4px' }}>
+                  Danger Zone: Delete Account
+                </h4>
+                <p style={{ fontSize: '0.86rem', color: '#9f1239', fontWeight: '600' }}>
+                  Permanently delete your account profile and all data.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteAccountModal(true)}
+                style={{
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '14px',
+                  fontWeight: '800',
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <Trash2 size={16} /> Delete My Account
+              </button>
+            </div>
           </div>
         ) : selectedUser ? (
           <>
@@ -1650,23 +1753,50 @@ export default function Dashboard({ user, onLogout }) {
                 </div>
               </div>
 
-              {/* Online / Offline Status Badge */}
-              <div
-                style={{
-                  padding: '7px 16px',
-                  borderRadius: '20px',
-                  background: isUserOnline(selectedUser._id) ? '#ecfdf5' : '#f8fafc',
-                  border: `1.5px solid ${isUserOnline(selectedUser._id) ? '#a7f3d0' : '#e2e8f0'}`,
-                  color: isUserOnline(selectedUser._id) ? '#047857' : '#64748b',
-                  fontSize: '0.85rem',
-                  fontWeight: '800',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Circle size={8} fill={isUserOnline(selectedUser._id) ? '#10b981' : '#cbd5e1'} color="none" />
-                {isUserOnline(selectedUser._id) ? '🟢 Online Now' : '⚪ Offline'}
+              {/* Online / Offline Status Badge & Disconnect Button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: '20px',
+                    background: isUserOnline(selectedUser._id) ? '#ecfdf5' : '#f8fafc',
+                    border: `1.5px solid ${isUserOnline(selectedUser._id) ? '#a7f3d0' : '#e2e8f0'}`,
+                    color: isUserOnline(selectedUser._id) ? '#047857' : '#64748b',
+                    fontSize: '0.85rem',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Circle size={8} fill={isUserOnline(selectedUser._id) ? '#10b981' : '#cbd5e1'} color="none" />
+                  {isUserOnline(selectedUser._id) ? '🟢 Online Now' : '⚪ Offline'}
+                </div>
+
+                {selectedUser.username !== 'nira' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDisconnectModal(true)}
+                    title={`Disconnect with @${selectedUser.username}`}
+                    style={{
+                      background: '#fef2f2',
+                      border: '1.5px solid #fecaca',
+                      color: '#ef4444',
+                      padding: '7px 14px',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 800,
+                      fontSize: '0.82rem',
+                      boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <UserX size={15} /> Disconnect
+                  </button>
+                )}
               </div>
             </div>
 
@@ -2433,6 +2563,270 @@ export default function Dashboard({ user, onLogout }) {
                   }}
                 >
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DISCONNECT CONNECTION CONFIRMATION POPUP MODAL */}
+        {showDisconnectModal && selectedUser && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+            }}
+            onClick={() => {
+              setShowDisconnectModal(false);
+              setDeleteDisconnectMessages(false);
+            }}
+          >
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: '24px',
+                padding: '32px 28px',
+                maxWidth: '420px',
+                width: '100%',
+                textAlign: 'center',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                border: '1px solid #f1f5f9',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                  color: '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '18px',
+                  boxShadow: '0 8px 20px rgba(239, 68, 68, 0.2)',
+                }}
+              >
+                <UserX size={30} strokeWidth={2.2} />
+              </div>
+
+              <h3 className="font-extrabold" style={{ fontSize: '1.35rem', color: '#0f172a', marginBottom: '8px' }}>
+                Disconnect with @{selectedUser.username}?
+              </h3>
+
+              <p style={{ fontSize: '0.92rem', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
+                Are you sure you want to remove <strong>{selectedUser.name}</strong> (@{selectedUser.username}) from your connected contacts?
+              </p>
+
+              {/* Delete All Chat Checkbox */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: '#f8fafc',
+                  padding: '12px 16px',
+                  borderRadius: '14px',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                  marginBottom: '24px',
+                  width: '100%',
+                  userSelect: 'none',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={deleteDisconnectMessages}
+                  onChange={(e) => setDeleteDisconnectMessages(e.target.checked)}
+                  style={{ width: '18px', height: '18px', accentColor: '#ef4444', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.86rem', fontWeight: '800', color: '#0f172a', textAlign: 'left' }}>
+                  Also delete all chat history with @{selectedUser.username}
+                </span>
+              </label>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDisconnectModal(false);
+                    setDeleteDisconnectMessages(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '12px 18px',
+                    borderRadius: '14px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontWeight: '800',
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  No, Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExecuteDisconnect}
+                  style={{
+                    flex: 1,
+                    padding: '12px 18px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                  }}
+                >
+                  Yes, Disconnect
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DELETE ACCOUNT CONFIRMATION POPUP MODAL */}
+        {showDeleteAccountModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+            }}
+            onClick={() => {
+              setShowDeleteAccountModal(false);
+              setDeleteAccountMessages(false);
+            }}
+          >
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: '24px',
+                padding: '32px 28px',
+                maxWidth: '440px',
+                width: '100%',
+                textAlign: 'center',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                border: '1px solid #f1f5f9',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                  color: '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '18px',
+                  boxShadow: '0 8px 20px rgba(239, 68, 68, 0.2)',
+                }}
+              >
+                <ShieldAlert size={32} strokeWidth={2.2} />
+              </div>
+
+              <h3 className="font-extrabold" style={{ fontSize: '1.4rem', color: '#0f172a', marginBottom: '8px' }}>
+                Delete Your Account?
+              </h3>
+
+              <p style={{ fontSize: '0.92rem', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
+                Are you sure you want to delete your account <strong>@{currentUserHandle}</strong>? This action cannot be undone.
+              </p>
+
+              {/* Delete All Chat Checkbox */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: '#f8fafc',
+                  padding: '12px 16px',
+                  borderRadius: '14px',
+                  border: '1px solid #e2e8f0',
+                  cursor: 'pointer',
+                  marginBottom: '24px',
+                  width: '100%',
+                  userSelect: 'none',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={deleteAccountMessages}
+                  onChange={(e) => setDeleteAccountMessages(e.target.checked)}
+                  style={{ width: '18px', height: '18px', accentColor: '#ef4444', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.86rem', fontWeight: '800', color: '#0f172a', textAlign: 'left' }}>
+                  Also delete all my sent & received chat messages
+                </span>
+              </label>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteAccountModal(false);
+                    setDeleteAccountMessages(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '12px 18px',
+                    borderRadius: '14px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    color: '#475569',
+                    fontWeight: '800',
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExecuteDeleteAccount}
+                  style={{
+                    flex: 1,
+                    padding: '12px 18px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#ffffff',
+                    fontWeight: '800',
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                  }}
+                >
+                  Yes, Delete Account
                 </button>
               </div>
             </div>

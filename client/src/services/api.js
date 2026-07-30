@@ -215,3 +215,31 @@ export const fetchConnectionStatus = async (userId, targetId) => {
     return { status: 'none' };
   }
 };
+
+export const disconnectConnection = async (userId, targetId, deleteMessages = false) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/connections/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, targetId, deleteMessages }),
+    });
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error disconnecting connection:', error);
+    throw error;
+  }
+};
+
+export const deleteUserAccount = async (userId, deleteMessages = false) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/delete-account`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, deleteMessages }),
+    });
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    throw error;
+  }
+};
