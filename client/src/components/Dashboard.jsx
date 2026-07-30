@@ -582,12 +582,6 @@ export default function Dashboard({ user, onLogout }) {
     return () => clearTimeout(timer);
   }, [searchQuery, currentUserId, currentUserHandle, currentUserEmail]);
 
-  // Auto-select first contact if none selected yet
-  useEffect(() => {
-    if (!selectedUser && usersList.length > 0) {
-      setSelectedUser(usersList[0]);
-    }
-  }, [usersList, selectedUser]);
 
   // Fetch last message previews and unread counts for all users in directory
   useEffect(() => {
