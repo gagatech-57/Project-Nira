@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Message = require('../models/Message');
+const ConnectionRequest = require('../models/ConnectionRequest');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'realtime_chat_secret_key_2026';
 
@@ -335,6 +336,176 @@ router.get('/users', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch users' });
+  }
+});
+
+// @route   POST /api/auth/connections/send-request
+router.post('/connections/send-request', async (req, res) => {
+  try {
+    const { senderId, receiverId } = req.body;
+    if (!senderId || !receiverId) {
+      return res.status(400).json({ success: false, message: 'Sender and receiver are required' });
+    }
+
+    if (String(senderId) === String(receiverId)) {
+      return res.status(400).json({ success: false, message: 'Cannot connect with yourself' });
+    }
+
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    if (isMongoConnected) {
+      let reqDoc = await ConnectionRequest.findOne({
+        $or: [
+          { sender: senderId, receiver: receiverId },
+          { sender: receiverId, receiver: senderId },
+        ],
+      });
+
+      if (reqDoc) {
+        if (reqDoc.status === 'accepted') {
+          return res.json({ success: true, message: 'Already connected!', connection: reqDoc });
+        }
+        if (reqDoc.status === 'pending') {
+          return res.json({ success: true, message: 'Connection request is already pending!', connection: reqDoc });
+        }
+        reqDoc.sender = senderId;
+        reqDoc.receiver = receiverId;
+        reqDoc.status = 'pending';
+        await reqDoc.save();
+        return res.json({ success: true, message: 'Connection request sent!', connection: reqDoc });
+      }
+
+      reqDoc = await ConnectionRequest.create({
+        sender: senderId,
+        receiver: receiverId,
+        status: 'pending',
+      });
+
+      return res.json({ success: true, message: 'Connection request sent!', connection: reqDoc });
+    } else {
+      return res.json({ success: true, message: 'Connection request sent (memory mode)' });
+    }
+  } catch (error) {
+    console.error('Send Connection Request Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send connection request' });
+  }
+});
+
+// @route   GET /api/auth/connections/requests/:userId
+router.get('/connections/requests/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const isMongoConnected = mongoose.connection.readyState === 1;
+
+    if (isMongoConnected) {
+      const requests = await ConnectionRequest.find({
+        receiver: userId,
+        status: 'pending',
+      }).populate('sender', 'name username email gender age mobile');
+
+      return res.json({ success: true, requests });
+    }
+    return res.json({ success: true, requests: [] });
+  } catch (error) {
+    console.error('Fetch Connection Requests Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch connection requests' });
+  }
+});
+
+// @route   POST /api/auth/connections/respond-request
+router.post('/connections/respond-request', async (req, res) => {
+  try {
+    const { requestId, action } = req.body;
+    if (!requestId || !action) {
+      return res.status(400).json({ success: false, message: 'requestId and action are required' });
+    }
+
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    if (isMongoConnected) {
+      const reqDoc = await ConnectionRequest.findById(requestId);
+      if (!reqDoc) {
+        return res.status(404).json({ success: false, message: 'Connection request not found' });
+      }
+
+      reqDoc.status = action === 'accepted' ? 'accepted' : 'declined';
+      await reqDoc.save();
+
+      return res.json({ success: true, message: `Request ${reqDoc.status}`, connection: reqDoc });
+    }
+    return res.json({ success: true, message: `Request updated` });
+  } catch (error) {
+    console.error('Respond Connection Request Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to respond to request' });
+  }
+});
+
+// @route   GET /api/auth/connections/connected/:userId
+router.get('/connections/connected/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const isMongoConnected = mongoose.connection.readyState === 1;
+
+    let connectedUserIds = [];
+    if (isMongoConnected) {
+      const accepted = await ConnectionRequest.find({
+        $or: [{ sender: userId }, { receiver: userId }],
+        status: 'accepted',
+      });
+
+      connectedUserIds = accepted.map((c) =>
+        String(c.sender) === String(userId) ? String(c.receiver) : String(c.sender)
+      );
+
+      const niraBot = await User.findOne({ username: 'nira' });
+      if (niraBot && !connectedUserIds.includes(String(niraBot._id))) {
+        connectedUserIds.push(String(niraBot._id));
+      }
+
+      const users = await User.find({ _id: { $in: connectedUserIds } }).select('-password');
+      return res.json({ success: true, users });
+    } else {
+      const users = memoryUsers.filter((u) => u._id !== userId).map(({ password, ...rest }) => rest);
+      return res.json({ success: true, users });
+    }
+  } catch (error) {
+    console.error('Fetch Connected Users Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch connected users' });
+  }
+});
+
+// @route   GET /api/auth/connections/status/:userId/:targetId
+router.get('/connections/status/:userId/:targetId', async (req, res) => {
+  try {
+    const { userId, targetId } = req.params;
+    const isMongoConnected = mongoose.connection.readyState === 1;
+
+    if (isMongoConnected) {
+      const niraBot = await User.findOne({ username: 'nira' });
+      if (niraBot && (String(targetId) === String(niraBot._id) || String(userId) === String(niraBot._id))) {
+        return res.json({ success: true, status: 'connected' });
+      }
+
+      const reqDoc = await ConnectionRequest.findOne({
+        $or: [
+          { sender: userId, receiver: targetId },
+          { sender: targetId, receiver: userId },
+        ],
+      });
+
+      if (!reqDoc) return res.json({ success: true, status: 'none' });
+      if (reqDoc.status === 'accepted') return res.json({ success: true, status: 'connected' });
+      if (reqDoc.status === 'pending') {
+        return res.json({
+          success: true,
+          status: String(reqDoc.sender) === String(userId) ? 'pending_sent' : 'pending_received',
+          requestId: reqDoc._id,
+        });
+      }
+      return res.json({ success: true, status: 'declined' });
+    }
+    return res.json({ success: true, status: 'connected' });
+  } catch (error) {
+    console.error('Fetch Connection Status Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch connection status' });
   }
 });
 

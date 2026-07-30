@@ -155,3 +155,63 @@ export const deleteChatMessage = async (messageId, sender) => {
     console.error('Error deleting message:', error);
   }
 };
+
+export const sendConnectionRequest = async (senderId, receiverId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/connections/send-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId, receiverId }),
+    });
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error sending connection request:', error);
+    throw error;
+  }
+};
+
+export const fetchPendingRequests = async (userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/connections/requests/${userId}`);
+    const data = await safeJsonParse(response);
+    return data.requests || [];
+  } catch (error) {
+    console.error('Error fetching connection requests:', error);
+    return [];
+  }
+};
+
+export const respondConnectionRequest = async (requestId, action) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/connections/respond-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId, action }),
+    });
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error responding to connection request:', error);
+    throw error;
+  }
+};
+
+export const fetchConnectedUsers = async (userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/connections/connected/${userId}`);
+    const data = await safeJsonParse(response);
+    return data.users || [];
+  } catch (error) {
+    console.error('Error fetching connected users:', error);
+    return [];
+  }
+};
+
+export const fetchConnectionStatus = async (userId, targetId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/connections/status/${userId}/${targetId}`);
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error fetching connection status:', error);
+    return { status: 'none' };
+  }
+};

@@ -210,6 +210,18 @@ io.on('connection', (socket) => {
     io.to(rStr).emit('message_deleted', { messageId });
   });
 
+  socket.on('send_connection_request', ({ senderId, receiverId, senderUser }) => {
+    if (!receiverId) return;
+    const rStr = receiverId.toString();
+    io.to(rStr).emit('receive_connection_request', { senderId, senderUser });
+  });
+
+  socket.on('respond_connection_request', ({ senderId, receiverId, action }) => {
+    if (!senderId) return;
+    const sStr = senderId.toString();
+    io.to(sStr).emit('connection_request_responded', { receiverId, action });
+  });
+
   socket.on('send_message', async (data) => {
     const { sender, receiver, text, createdAt, _id, fileUrl, fileName, fileType, fileSize } = data;
     if (!sender || !receiver) return;

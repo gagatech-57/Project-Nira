@@ -31,7 +31,21 @@ import {
   Edit3,
 } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { fetchAllUsers, fetchConversation, postChatMessage, markMessagesAsRead, uploadFile, editChatMessage, deleteChatMessage } from '../services/api';
+import {
+  fetchAllUsers,
+  fetchConversation,
+  postChatMessage,
+  markMessagesAsRead,
+  uploadFile,
+  editChatMessage,
+  deleteChatMessage,
+  sendConnectionRequest,
+  fetchPendingRequests,
+  respondConnectionRequest,
+  fetchConnectedUsers,
+  fetchConnectionStatus,
+} from '../services/api';
+import { UserCheck, UserPlus, Clock, Check, UserX } from 'lucide-react';
 
 const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
   <svg
@@ -75,6 +89,11 @@ export default function Dashboard({ user, onLogout }) {
   const [newMessageText, setNewMessageText] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
+
+  // Connection Requests & Tabs
+  const [sidebarTab, setSidebarTab] = useState('chats'); // 'chats' or 'requests'
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [connectionStatuses, setConnectionStatuses] = useState({});
 
   // Sidebar & Settings Panel States
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -347,23 +366,128 @@ export default function Dashboard({ user, onLogout }) {
       });
     });
 
+    newSocket.on('receive_connection_request', () => {
+      if (currentUserId) {
+        fetchPendingRequests(currentUserId).then((reqs) => setPendingRequests(reqs));
+      }
+    });
+
+    newSocket.on('connection_request_responded', ({ receiverId, action }) => {
+      if (action === 'accepted') {
+        fetchConnectedUsers(currentUserId).then((connected) => {
+          const filtered = connected.filter(
+            (u) =>
+              String(u._id || u.id) !== String(currentUserId) &&
+              u.username?.toLowerCase() !== currentUserHandle &&
+              u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
+          );
+          setUsersList(filtered);
+        });
+      }
+      setConnectionStatuses((prev) => ({
+        ...prev,
+        [receiverId]: action === 'accepted' ? 'connected' : 'declined',
+      }));
+    });
+
     return () => {
       newSocket.disconnect();
     };
   }, [currentUserId]);
 
-  // Load / Search Users list
+  const loadPendingRequests = async () => {
+    if (!currentUserId) return;
+    const reqs = await fetchPendingRequests(currentUserId);
+    setPendingRequests(reqs);
+  };
+
+  useEffect(() => {
+    loadPendingRequests();
+    const timer = setInterval(loadPendingRequests, 12000);
+    return () => clearInterval(timer);
+  }, [currentUserId]);
+
+  const handleSendConnectionRequest = async (targetUser) => {
+    try {
+      setConnectionStatuses((prev) => ({ ...prev, [targetUser._id]: 'pending_sent' }));
+      await sendConnectionRequest(currentUserId, targetUser._id);
+      if (socket) {
+        socket.emit('send_connection_request', {
+          senderId: currentUserId,
+          receiverId: targetUser._id,
+          senderUser: { _id: currentUserId, name: currentUserName, username: currentUserHandle },
+        });
+      }
+    } catch (err) {
+      console.error('Error sending connect request:', err);
+    }
+  };
+
+  const handleRespondRequest = async (requestId, action, senderId) => {
+    try {
+      await respondConnectionRequest(requestId, action);
+      setPendingRequests((prev) => prev.filter((r) => r._id !== requestId));
+
+      if (socket) {
+        socket.emit('respond_connection_request', {
+          senderId,
+          receiverId: currentUserId,
+          action,
+        });
+      }
+
+      if (action === 'accepted') {
+        const connected = await fetchConnectedUsers(currentUserId);
+        const filtered = connected.filter(
+          (u) =>
+            String(u._id || u.id) !== String(currentUserId) &&
+            u.username?.toLowerCase() !== currentUserHandle &&
+            u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
+        );
+        setUsersList(filtered);
+        const newFriend = filtered.find((u) => String(u._id) === String(senderId));
+        if (newFriend) setSelectedUser(newFriend);
+      }
+    } catch (err) {
+      console.error('Error responding to request:', err);
+    }
+  };
+
+  // Load Contacts list (Connected Users) OR Search All Users across platform
   useEffect(() => {
     const loadUsers = async () => {
       setLoadingUsers(true);
-      const list = await fetchAllUsers(searchQuery.toLowerCase());
-      const filtered = list.filter(
-        (u) =>
-          String(u._id || u.id) !== String(currentUserId) &&
-          u.username?.toLowerCase() !== currentUserHandle &&
-          u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
-      );
-      setUsersList(filtered);
+      const query = searchQuery.trim().toLowerCase();
+
+      if (!query) {
+        // Default View: Show ONLY Connected Friends + Nira Bot!
+        const connected = await fetchConnectedUsers(currentUserId);
+        const filtered = connected.filter(
+          (u) =>
+            String(u._id || u.id) !== String(currentUserId) &&
+            u.username?.toLowerCase() !== currentUserHandle &&
+            u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
+        );
+        setUsersList(filtered);
+      } else {
+        // Search View: Search all registered users
+        const list = await fetchAllUsers(query);
+        const filtered = list.filter(
+          (u) =>
+            String(u._id || u.id) !== String(currentUserId) &&
+            u.username?.toLowerCase() !== currentUserHandle &&
+            u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
+        );
+
+        const statusMap = {};
+        for (let targetUser of filtered) {
+          const res = await fetchConnectionStatus(currentUserId, targetUser._id);
+          statusMap[targetUser._id] = res.status || 'none';
+        }
+        setConnectionStatuses((prev) => ({ ...prev, ...statusMap }));
+        setUsersList(filtered);
+      }
+
       setLoadingUsers(false);
     };
 
@@ -848,9 +972,185 @@ export default function Dashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* Users Directory List (LARGER FONT SIZE FOR CONTACT NAMES) */}
+        {/* Sidebar Navigation Tabs (Chats vs Requests) */}
+        {!sidebarCollapsed && !searchQuery && (
+          <div style={{ padding: '0 18px 12px 18px', display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setSidebarTab('chats')}
+              style={{
+                flex: 1,
+                padding: '9px 12px',
+                borderRadius: '12px',
+                border: 'none',
+                background: sidebarTab === 'chats' ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)' : '#f1f5f9',
+                color: sidebarTab === 'chats' ? '#ffffff' : '#64748b',
+                fontWeight: '800',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                boxShadow: sidebarTab === 'chats' ? '0 4px 12px rgba(79,70,229,0.25)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <MessageSquare size={16} /> Chats
+            </button>
+
+            <button
+              onClick={() => setSidebarTab('requests')}
+              style={{
+                flex: 1,
+                padding: '9px 12px',
+                borderRadius: '12px',
+                border: 'none',
+                background: sidebarTab === 'requests' ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)' : '#f1f5f9',
+                color: sidebarTab === 'requests' ? '#ffffff' : '#64748b',
+                fontWeight: '800',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                position: 'relative',
+                boxShadow: sidebarTab === 'requests' ? '0 4px 12px rgba(79,70,229,0.25)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <UserPlus size={16} /> Requests
+              {pendingRequests.length > 0 && (
+                <span
+                  style={{
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    fontSize: '0.7rem',
+                    fontWeight: 900,
+                    padding: '2px 7px',
+                    borderRadius: '10px',
+                    marginLeft: '2px',
+                  }}
+                >
+                  {pendingRequests.length}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Users Directory & Requests List */}
         <div style={{ flex: 1, overflowY: 'auto', padding: sidebarCollapsed ? '12px 6px' : '6px 14px 14px 14px' }}>
-          {loadingUsers ? (
+          {sidebarTab === 'requests' && !searchQuery ? (
+            /* REQUESTS TAB VIEW */
+            pendingRequests.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 16px', color: '#64748b' }}>
+                <UserCheck size={36} style={{ color: '#cbd5e1', marginBottom: '8px' }} />
+                {!sidebarCollapsed && (
+                  <>
+                    <p style={{ fontWeight: '800', fontSize: '1rem' }}>No Connection Requests</p>
+                    <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                      When someone sends you a connect request, it will appear here.
+                    </p>
+                  </>
+                )}
+              </div>
+            ) : (
+              pendingRequests.map((req) => {
+                const s = req.sender || {};
+                return (
+                  <div
+                    key={req._id}
+                    style={{
+                      padding: '14px 14px',
+                      borderRadius: '16px',
+                      marginBottom: '10px',
+                      background: '#ffffff',
+                      border: '1.5px solid #e0e7ff',
+                      boxShadow: '0 4px 12px rgba(79, 70, 229, 0.08)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div
+                        style={{
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: '800',
+                          fontSize: '1.1rem',
+                        }}
+                      >
+                        {(s.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h4 className="font-extrabold" style={{ fontSize: '1.02rem', color: '#0f172a', lineHeight: 1.25 }}>
+                          {s.name}
+                        </h4>
+                        <p style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: '600' }}>
+                          @{s.username}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleRespondRequest(req._id, 'accepted', s._id)}
+                        style={{
+                          flex: 1,
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          fontWeight: '800',
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          boxShadow: '0 3px 10px rgba(16, 185, 129, 0.25)',
+                        }}
+                      >
+                        <Check size={14} /> Accept
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRespondRequest(req._id, 'declined', s._id)}
+                        style={{
+                          flex: 1,
+                          background: '#fef2f2',
+                          color: '#ef4444',
+                          border: '1px solid #fecaca',
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          fontWeight: '800',
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <UserX size={14} /> Decline
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )
+          ) : loadingUsers ? (
             <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
               <div className="spinner" style={{ margin: '0 auto 8px auto', borderColor: '#4f46e5', borderTopColor: 'transparent' }}></div>
               {!sidebarCollapsed && 'Loading users...'}
@@ -862,7 +1162,7 @@ export default function Dashboard({ user, onLogout }) {
                 <>
                   <p style={{ fontWeight: '800', fontSize: '1rem' }}>No user found</p>
                   <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                    {searchQuery ? `No matching account for "${searchQuery}"` : 'No other registered users in DB yet.'}
+                    {searchQuery ? `No matching account for "${searchQuery}"` : 'No connected contacts yet. Search @username to connect!'}
                   </p>
                 </>
               )}
@@ -872,7 +1172,7 @@ export default function Dashboard({ user, onLogout }) {
               .sort((a, b) => {
                 const timeA = lastMessageTimestamps[a._id] || 0;
                 const timeB = lastMessageTimestamps[b._id] || 0;
-                if (timeA !== timeB) return timeB - timeA; // Descending: Newest messages on TOP
+                if (timeA !== timeB) return timeB - timeA;
                 return (a.name || '').localeCompare(b.name || '');
               })
               .map((u) => {
@@ -882,14 +1182,17 @@ export default function Dashboard({ user, onLogout }) {
                 const lastMsgPreview = typeof lastMsgData === 'object' ? lastMsgData.preview : (lastMsgData || '');
                 const lastMsgTime = typeof lastMsgData === 'object' ? lastMsgData.time : '';
                 const unreadCount = unreadCounts[u._id] || 0;
+                const connStatus = connectionStatuses[u._id] || (u.username === 'nira' ? 'connected' : 'none');
 
                 return (
                   <div
                     key={u._id}
                     onClick={() => {
-                      setSelectedUser(u);
-                      setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
-                      setSearchQuery('');
+                      if (!searchQuery || connStatus === 'connected' || u.username === 'nira') {
+                        setSelectedUser(u);
+                        setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
+                        setSearchQuery('');
+                      }
                     }}
                     title={u.name}
                     style={{
@@ -913,7 +1216,7 @@ export default function Dashboard({ user, onLogout }) {
                             width: '44px',
                             height: '44px',
                             borderRadius: '50%',
-                            background: '#0f172a',
+                            background: u.username === 'nira' ? 'linear-gradient(135deg, #020617 0%, #1e1b4b 100%)' : '#0f172a',
                             color: '#ffffff',
                             display: 'flex',
                             alignItems: 'center',
@@ -943,7 +1246,7 @@ export default function Dashboard({ user, onLogout }) {
                               marginTop: '3px',
                             }}
                           >
-                            {lastMsgPreview}
+                            {searchQuery ? `@${u.username}` : (lastMsgPreview || `@${u.username}`)}
                           </p>
                         </div>
                       )}
@@ -960,39 +1263,127 @@ export default function Dashboard({ user, onLogout }) {
                           flexShrink: 0,
                         }}
                       >
-                        {lastMsgTime && (
-                          <span
-                            style={{
-                              fontSize: '0.74rem',
-                              fontWeight: '700',
-                              color: unreadCount > 0 ? '#ef4444' : '#94a3b8',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {lastMsgTime}
-                          </span>
-                        )}
-                        {unreadCount > 0 && (
-                          <span
-                            style={{
-                              minWidth: '18px',
-                              height: '18px',
-                              padding: '0 5px',
-                              borderRadius: '10px',
-                              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                              color: '#ffffff',
-                              fontSize: '0.68rem',
-                              fontWeight: '900',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)',
-                              marginTop: '4px',
-                            }}
-                            title={`${unreadCount} unread message${unreadCount > 1 ? 's' : ''}`}
-                          >
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </span>
+                        {searchQuery && u.username !== 'nira' ? (
+                          connStatus === 'connected' ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUser(u);
+                                setSearchQuery('');
+                              }}
+                              style={{
+                                background: '#ede9fe',
+                                color: '#4f46e5',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '10px',
+                                fontWeight: 800,
+                                fontSize: '0.78rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Chat
+                            </button>
+                          ) : connStatus === 'pending_sent' ? (
+                            <span
+                              style={{
+                                background: '#fef3c7',
+                                color: '#d97706',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                fontSize: '0.74rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <Clock size={12} /> Pending
+                            </span>
+                          ) : connStatus === 'pending_received' ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSidebarTab('requests');
+                                setSearchQuery('');
+                              }}
+                              style={{
+                                background: '#10b981',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '6px 10px',
+                                borderRadius: '10px',
+                                fontWeight: 800,
+                                fontSize: '0.76rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Accept
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSendConnectionRequest(u);
+                              }}
+                              style={{
+                                background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '10px',
+                                fontWeight: 800,
+                                fontSize: '0.78rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 3px 8px rgba(79,70,229,0.25)',
+                              }}
+                            >
+                              <UserPlus size={13} /> Connect
+                            </button>
+                          )
+                        ) : (
+                          <>
+                            {lastMsgTime && (
+                              <span
+                                style={{
+                                  fontSize: '0.74rem',
+                                  fontWeight: '700',
+                                  color: unreadCount > 0 ? '#ef4444' : '#94a3b8',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {lastMsgTime}
+                              </span>
+                            )}
+                            {unreadCount > 0 && (
+                              <span
+                                style={{
+                                  minWidth: '18px',
+                                  height: '18px',
+                                  padding: '0 5px',
+                                  borderRadius: '10px',
+                                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                  color: '#ffffff',
+                                  fontSize: '0.68rem',
+                                  fontWeight: '900',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)',
+                                  marginTop: '4px',
+                                }}
+                                title={`${unreadCount} unread message${unreadCount > 1 ? 's' : ''}`}
+                              >
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
