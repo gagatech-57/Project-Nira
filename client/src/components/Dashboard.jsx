@@ -2176,7 +2176,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             </div>
           </div>
         ) : selectedUser ? (
-          <>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
             {/* Active Conversation Header - STICKY TOP HEADER */}
             <div
               style={{
@@ -2191,6 +2191,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 top: 0,
                 zIndex: 100,
                 boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
+                width: '100%',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px' }}>
@@ -2413,6 +2414,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 minHeight: 0,
                 padding: isMobile ? '16px 12px' : '28px 32px',
                 overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
                 background: isDraggingOver ? 'rgba(79,70,229,0.06)' : '#f8fafc',
                 display: 'flex',
                 flexDirection: 'column',
@@ -2953,7 +2955,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 </button>
               </form>
             </div>
-          </>
+          </div>
         ) : (
           /* NO CHAT SELECTED STATE (STUNNING MODERN UI WITH RICH DETAILS & ONBOARDING GUIDE) */
           <div
