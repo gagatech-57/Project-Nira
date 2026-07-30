@@ -105,26 +105,26 @@ function generateDemoReply(text, demoUserName) {
   const lower = text.toLowerCase().trim();
 
   if (lower === 'hi' || lower === 'hello' || lower === 'hey' || lower.includes('hi ') || lower.includes('hello ')) {
-    return `Hey there! 👋 Nice to meet you! How is your day going?`;
+    return `Hello! 👋 I'm Nira! Nice to connect with you! How can I help you today?`;
   }
   if (lower.includes('how are you') || lower.includes('how r u')) {
-    return `I'm doing awesome, thanks for asking! 😊 How about you?`;
+    return `I'm doing awesome, thanks for asking! 😊 How are you doing today?`;
   }
   if (lower.includes('what tell') || lower.includes('tell') || lower.includes('what do you do')) {
-    return `Everything is going great on Nira Chat! Glad to connect with you! 🚀`;
+    return `I am Nira, your real-time assistant on Nira Chat! 🚀`;
   }
   if (lower.includes('bye') || lower.includes('see you') || lower.includes('tc')) {
-    return `Take care! Talk to you later! 👋✨`;
+    return `Take care! Talk to you soon! 👋✨`;
   }
   if (lower.includes('name') || lower.includes('who are you')) {
-    return `I'm ${demoUserName}! Registered on Nira Chat!`;
+    return `I'm Nira! 🌟 Registered test AI on Nira Chat!`;
   }
 
   const responses = [
     `Thanks for your message: "${text}"! Great to chat with you on Nira Chat! 🔥`,
     `Got your message! Hope you're having a wonderful day! 😄`,
-    `Awesome! Let's stay connected on Nira Chat! 👍`,
-    `That sounds great! Tell me more! 😊`,
+    `Awesome! Testing real-time chat with Nira is working great! 👍`,
+    `That sounds wonderful! Tell me more! 😊`,
   ];
   return responses[Math.floor(Math.random() * responses.length)];
 }

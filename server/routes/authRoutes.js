@@ -16,37 +16,18 @@ const generateToken = (userId) => {
   return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '7d' });
 };
 
-// Demo Users Array for DB Seeding (20 Demo Accounts)
+// Single Test Bot Account: Nira
 const DEMO_USERS_DATA = [
-  { name: 'Alex Turner', username: 'alex_turner', email: 'alex@demo.com', gender: 'M', age: 26, mobile: '+12015550101' },
-  { name: 'Sophia Chen', username: 'sophia_chen', email: 'sophia@demo.com', gender: 'F', age: 24, mobile: '+12015550102' },
-  { name: 'Marcus Vance', username: 'marcus_vance', email: 'marcus@demo.com', gender: 'M', age: 29, mobile: '+12015550103' },
-  { name: 'Elena Rostova', username: 'elena_rostova', email: 'elena@demo.com', gender: 'F', age: 27, mobile: '+12015550104' },
-  { name: 'David Beckham', username: 'david_beckham', email: 'david@demo.com', gender: 'M', age: 45, mobile: '+12015550105' },
-  { name: 'Jessica Alba', username: 'jessica_alba', email: 'jessica@demo.com', gender: 'F', age: 32, mobile: '+12015550106' },
-  { name: 'Liam Neeson', username: 'liam_neeson', email: 'liam@demo.com', gender: 'M', age: 38, mobile: '+12015550107' },
-  { name: 'Emma Watson', username: 'emma_watson', email: 'emma@demo.com', gender: 'F', age: 28, mobile: '+12015550108' },
-  { name: 'Noah Centineo', username: 'noah_c', email: 'noah@demo.com', gender: 'M', age: 25, mobile: '+12015550109' },
-  { name: 'Olivia Wilde', username: 'olivia_wilde', email: 'olivia@demo.com', gender: 'F', age: 30, mobile: '+12015550110' },
-  { name: 'Lucas Scott', username: 'lucas_scott', email: 'lucas@demo.com', gender: 'M', age: 27, mobile: '+12015550111' },
-  { name: 'Mia Wallace', username: 'mia_wallace', email: 'mia@demo.com', gender: 'F', age: 26, mobile: '+12015550112' },
-  { name: 'Ethan Hunt', username: 'ethan_hunt', email: 'ethan@demo.com', gender: 'M', age: 34, mobile: '+12015550113' },
-  { name: 'Ava Gardner', username: 'ava_gardner', email: 'ava@demo.com', gender: 'F', age: 29, mobile: '+12015550114' },
-  { name: 'Mason Mount', username: 'mason_mount', email: 'mason@demo.com', gender: 'M', age: 23, mobile: '+12015550115' },
-  { name: 'Isabella Ross', username: 'isabella_r', email: 'isabella@demo.com', gender: 'F', age: 31, mobile: '+12015550116' },
-  { name: 'James Bond', username: 'james_bond', email: 'james@demo.com', gender: 'M', age: 35, mobile: '+12015550117' },
-  { name: 'Charlotte G', username: 'charlotte_g', email: 'charlotte@demo.com', gender: 'F', age: 28, mobile: '+12015550118' },
-  { name: 'Benjamin Button', username: 'benjamin_b', email: 'benjamin@demo.com', gender: 'M', age: 30, mobile: '+12015550119' },
-  { name: 'Amelia Earhart', username: 'amelia_e', email: 'amelia@demo.com', gender: 'F', age: 27, mobile: '+12015550120' },
+  { name: 'Nira', username: 'nira', email: 'nira@nira.chat', gender: 'F', age: 21, mobile: '9999999999' },
 ];
 
-// Helper to seed 20 demo users in MongoDB
+// Helper to seed single Nira bot user in MongoDB
 const seedDemoUsers = async () => {
   try {
     if (mongoose.connection.readyState !== 1) return;
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash('demo1234', salt);
+    const hashedPassword = await bcrypt.hash('nira123', salt);
 
     for (let dUser of DEMO_USERS_DATA) {
       const exists = await User.findOne({ username: dUser.username });
@@ -56,11 +37,11 @@ const seedDemoUsers = async () => {
           password: hashedPassword,
           isDemo: true,
         });
-        console.log(`🤖 Seeded Demo User: ${dUser.name} (@${dUser.username})`);
+        console.log(`🤖 Seeded Bot User: ${dUser.name} (@${dUser.username})`);
       }
     }
   } catch (err) {
-    console.error('Failed to seed demo users:', err);
+    console.error('Failed to seed Nira bot user:', err);
   }
 };
 
