@@ -147,6 +147,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const [newMessageText, setNewMessageText] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
+  const [conversationsCache, setConversationsCache] = useState({});
 
   // Connection Requests & Tabs
   const [sidebarTab, setSidebarTab] = useState('chats'); // 'chats' or 'requests'
@@ -779,30 +780,38 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
     markMessagesAsRead(currentUserId, selectedUser._id);
 
-    const loadChat = async (isInitialLoad = false) => {
-      const history = await fetchConversation(currentUserId, selectedUser._id);
-      setMessages(history || []);
-      setUnreadCounts((prev) => ({ ...prev, [selectedUser._id]: 0 }));
+    // Instant cache check for zero-delay chat opening
+    const cached = conversationsCache[selectedUser._id];
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setLoadingChat(false);
+    } else {
+      setMessages([]);
+      setLoadingChat(true);
+    }
 
-      if (history && history.length > 0) {
-        const lastMsg = history[history.length - 1];
-        setLastMessages((prev) => ({
-          ...prev,
-          [selectedUser._id]: {
-            preview: formatLastMessagePreview(lastMsg),
-            time: formatLastMessageTime(lastMsg.createdAt),
-          },
-        }));
-      }
+    fetchConversation(currentUserId, selectedUser._id)
+      .then((history) => {
+        const fetched = history || [];
+        setMessages(fetched);
+        setConversationsCache((prev) => ({ ...prev, [selectedUser._id]: fetched }));
+        setLoadingChat(false);
 
-      if (isInitialLoad) {
+        if (fetched.length > 0) {
+          const lastMsg = fetched[fetched.length - 1];
+          setLastMessages((prev) => ({
+            ...prev,
+            [selectedUser._id]: {
+              preview: formatLastMessagePreview(lastMsg),
+              time: formatLastMessageTime(lastMsg.createdAt),
+            },
+          }));
+        }
+
         isUserAtBottomRef.current = true;
         setTimeout(scrollToBottomInstant, 30);
-      }
-    };
-
-    setLoadingChat(true);
-    loadChat(true).then(() => setLoadingChat(false));
+      })
+      .catch(() => setLoadingChat(false));
 
     return () => {
       if (socketRef.current) {
@@ -2181,9 +2190,30 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 </div>
               )}
               {loadingChat ? (
-                <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b' }}>
-                  <div className="spinner" style={{ margin: '0 auto 10px auto', borderColor: '#4f46e5', borderTopColor: 'transparent' }}></div>
-                  Loading conversation...
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', width: '100%', padding: '12px 4px' }}>
+                  {/* Left skeleton message bubble */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', alignSelf: 'flex-start', maxWidth: '70%', width: '280px' }}>
+                    <div className="skeleton-box" style={{ width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                      <div className="skeleton-box" style={{ height: '44px', borderRadius: '18px 18px 18px 4px', width: '100%' }} />
+                      <div className="skeleton-box" style={{ height: '10px', width: '50px', borderRadius: '4px' }} />
+                    </div>
+                  </div>
+
+                  {/* Right skeleton message bubble */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignSelf: 'flex-end', maxWidth: '65%', width: '240px' }}>
+                    <div className="skeleton-box" style={{ height: '48px', borderRadius: '18px 18px 4px 18px', width: '100%', background: 'linear-gradient(90deg, #c7d2fe 0%, #e0e7ff 50%, #c7d2fe 100%)' }} />
+                    <div className="skeleton-box" style={{ height: '10px', width: '60px', borderRadius: '4px', alignSelf: 'flex-end' }} />
+                  </div>
+
+                  {/* Left skeleton message bubble 2 */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', alignSelf: 'flex-start', maxWidth: '75%', width: '320px' }}>
+                    <div className="skeleton-box" style={{ width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                      <div className="skeleton-box" style={{ height: '56px', borderRadius: '18px 18px 18px 4px', width: '100%' }} />
+                      <div className="skeleton-box" style={{ height: '10px', width: '45px', borderRadius: '4px' }} />
+                    </div>
+                  </div>
                 </div>
               ) : messages.length === 0 ? (
                 <div style={{ textAlign: 'center', margin: 'auto', color: '#64748b' }}>
