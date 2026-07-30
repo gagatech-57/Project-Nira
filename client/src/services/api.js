@@ -230,12 +230,12 @@ export const disconnectConnection = async (userId, targetId, deleteMessages = fa
   }
 };
 
-export const deleteUserAccount = async (userId, deleteMessages = false) => {
+export const deleteUserAccount = async (userId, password, deleteMessages = false) => {
   try {
     const response = await fetch(`${API_BASE_URL}/delete-account`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, deleteMessages }),
+      body: JSON.stringify({ userId, password, deleteMessages }),
     });
     return await safeJsonParse(response);
   } catch (error) {

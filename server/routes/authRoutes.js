@@ -553,13 +553,24 @@ router.post('/connections/disconnect', async (req, res) => {
 // @route   POST /api/auth/delete-account
 router.post('/delete-account', async (req, res) => {
   try {
-    const { userId, deleteMessages } = req.body;
-    if (!userId) {
-      return res.status(400).json({ success: false, message: 'userId is required' });
+    const { userId, password, deleteMessages } = req.body;
+    if (!userId || !password) {
+      return res.status(400).json({ success: false, message: 'Password is required to delete account' });
     }
 
     const isMongoConnected = mongoose.connection.readyState === 1;
     if (isMongoConnected) {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User account not found' });
+      }
+
+      // Verify password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Incorrect password! Account deletion cancelled.' });
+      }
+
       await User.findByIdAndDelete(userId);
 
       await ConnectionRequest.deleteMany({

@@ -91,6 +91,8 @@ export default function Dashboard({ user, onLogout }) {
   const [deleteDisconnectMessages, setDeleteDisconnectMessages] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deleteAccountMessages, setDeleteAccountMessages] = useState(false);
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState('');
+  const [deleteAccountError, setDeleteAccountError] = useState('');
   const [lastMessages, setLastMessages] = useState({});
   const [unreadCounts, setUnreadCounts] = useState({});
   const [lastMessageTimestamps, setLastMessageTimestamps] = useState({});
@@ -501,14 +503,24 @@ export default function Dashboard({ user, onLogout }) {
     }
   };
 
-  const handleExecuteDeleteAccount = async () => {
-    if (!currentUserId) return;
+  const handleExecuteDeleteAccount = async (e) => {
+    if (e) e.preventDefault();
+    if (!currentUserId || !deleteAccountPassword.trim()) {
+      setDeleteAccountError('Please enter your password to confirm account deletion.');
+      return;
+    }
+    setDeleteAccountError('');
     try {
-      await deleteUserAccount(currentUserId, deleteAccountMessages);
-      setShowDeleteAccountModal(false);
-      onLogout();
+      const res = await deleteUserAccount(currentUserId, deleteAccountPassword, deleteAccountMessages);
+      if (res && res.success) {
+        setShowDeleteAccountModal(false);
+        setDeleteAccountPassword('');
+        onLogout();
+      } else {
+        setDeleteAccountError(res?.message || 'Incorrect password! Account deletion cancelled.');
+      }
     } catch (err) {
-      console.error('Error deleting account:', err);
+      setDeleteAccountError('Failed to delete account. Please check your password.');
     }
   };
 
@@ -681,12 +693,7 @@ export default function Dashboard({ user, onLogout }) {
     setLoadingChat(true);
     loadChat(true).then(() => setLoadingChat(false));
 
-    const syncInterval = setInterval(() => {
-      loadChat(false);
-    }, 2500);
-
     return () => {
-      clearInterval(syncInterval);
       if (socketRef.current) {
         socketRef.current.emit('active_chat_changed', {
           userId: currentUserId,
@@ -2718,9 +2725,12 @@ export default function Dashboard({ user, onLogout }) {
             onClick={() => {
               setShowDeleteAccountModal(false);
               setDeleteAccountMessages(false);
+              setDeleteAccountPassword('');
+              setDeleteAccountError('');
             }}
           >
-            <div
+            <form
+              onSubmit={handleExecuteDeleteAccount}
               style={{
                 background: '#ffffff',
                 borderRadius: '24px',
@@ -2754,12 +2764,57 @@ export default function Dashboard({ user, onLogout }) {
               </div>
 
               <h3 className="font-extrabold" style={{ fontSize: '1.4rem', color: '#0f172a', marginBottom: '8px' }}>
-                Delete Your Account?
+                Confirm Delete Account?
               </h3>
 
-              <p style={{ fontSize: '0.92rem', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
-                Are you sure you want to delete your account <strong>@{currentUserHandle}</strong>? This action cannot be undone.
+              <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: '1.45', marginBottom: '16px' }}>
+                Please enter your account password to permanently delete <strong>@{currentUserHandle}</strong>.
               </p>
+
+              {deleteAccountError && (
+                <div
+                  style={{
+                    width: '100%',
+                    background: '#fef2f2',
+                    color: '#ef4444',
+                    border: '1px solid #fecaca',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    fontSize: '0.84rem',
+                    fontWeight: '800',
+                    marginBottom: '14px',
+                    textAlign: 'left',
+                  }}
+                >
+                  ⚠️ {deleteAccountError}
+                </div>
+              )}
+
+              {/* Password Input Field */}
+              <div style={{ width: '100%', marginBottom: '16px', textAlign: 'left' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0f172a', marginBottom: '6px', display: 'block' }}>
+                  Account Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter your password to confirm..."
+                  value={deleteAccountPassword}
+                  onChange={(e) => {
+                    setDeleteAccountPassword(e.target.value);
+                    setDeleteAccountError('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    fontSize: '0.95rem',
+                    fontWeight: '700',
+                    outline: 'none',
+                  }}
+                />
+              </div>
 
               {/* Delete All Chat Checkbox */}
               <label
@@ -2794,6 +2849,8 @@ export default function Dashboard({ user, onLogout }) {
                   onClick={() => {
                     setShowDeleteAccountModal(false);
                     setDeleteAccountMessages(false);
+                    setDeleteAccountPassword('');
+                    setDeleteAccountError('');
                   }}
                   style={{
                     flex: 1,
@@ -2811,8 +2868,7 @@ export default function Dashboard({ user, onLogout }) {
                 </button>
 
                 <button
-                  type="button"
-                  onClick={handleExecuteDeleteAccount}
+                  type="submit"
                   style={{
                     flex: 1,
                     padding: '12px 18px',
@@ -2826,10 +2882,10 @@ export default function Dashboard({ user, onLogout }) {
                     boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
                   }}
                 >
-                  Yes, Delete Account
+                  Confirm Delete
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         )}
       </div>
