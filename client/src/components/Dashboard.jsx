@@ -1634,14 +1634,16 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                             <h4 className="font-extrabold" style={{ fontSize: '1.08rem', color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {u.name}
                             </h4>
-                            <button
-                              type="button"
-                              onClick={(e) => togglePinUser(u._id, e)}
-                              title={isUserPinned ? 'Unpin contact' : 'Pin contact to top'}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: isUserPinned ? '#4f46e5' : '#cbd5e1' }}
-                            >
-                              <Pin size={13} style={{ transform: isUserPinned ? 'rotate(-45deg)' : 'none', fill: isUserPinned ? '#4f46e5' : 'none' }} />
-                            </button>
+                            {!searchQuery && (connStatus === 'connected' || u.username === 'nira') && (
+                              <button
+                                type="button"
+                                onClick={(e) => togglePinUser(u._id, e)}
+                                title={isUserPinned ? 'Unpin contact' : 'Pin contact to top'}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: isUserPinned ? '#4f46e5' : '#cbd5e1' }}
+                              >
+                                <Pin size={13} style={{ transform: isUserPinned ? 'rotate(-45deg)' : 'none', fill: isUserPinned ? '#4f46e5' : 'none' }} />
+                              </button>
+                            )}
                           </div>
                           <p
                             style={{
