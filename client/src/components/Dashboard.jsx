@@ -206,16 +206,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const [isTypingPartner, setIsTypingPartner] = useState(false);
   const typingTimeoutRef = useRef(null);
 
-  // 2. Emoji Picker & Reaction Bar States
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [activeReactionMsgId, setActiveReactionMsgId] = useState(null);
-
-  // 3. Audio Voice Recording States
-  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
-  const [audioRecordingTime, setAudioRecordingTime] = useState(0);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const audioTimerRef = useRef(null);
+  // Pinned Users & In-Chat Search States
 
   // 4. Pinned Users & In-Chat Search States
   const [pinnedUserIds, setPinnedUserIds] = useState(() => {
@@ -379,66 +370,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
     } catch (e) {}
   };
 
-  // Audio Voice Recording Handlers
-  const startAudioRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.start();
-      setIsRecordingAudio(true);
-      setAudioRecordingTime(0);
-
-      audioTimerRef.current = setInterval(() => {
-        setAudioRecordingTime((prev) => prev + 1);
-      }, 1000);
-    } catch (err) {
-      alert('Microphone access is required to record voice notes.');
-    }
-  };
-
-  const cancelAudioRecording = () => {
-    if (mediaRecorderRef.current && isRecordingAudio) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-    }
-    clearInterval(audioTimerRef.current);
-    setIsRecordingAudio(false);
-    setAudioRecordingTime(0);
-    audioChunksRef.current = [];
-  };
-
-  const stopAndSendAudioRecording = () => {
-    if (!mediaRecorderRef.current || !isRecordingAudio) return;
-
-    mediaRecorderRef.current.onstop = async () => {
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Audio = reader.result;
-        const fileData = {
-          fileUrl: base64Audio,
-          fileName: `voice_note_${Date.now()}.webm`,
-          fileType: 'audio',
-          fileSize: audioBlob.size,
-        };
-        await handleSendMessage(null, fileData);
-      };
-      reader.readAsDataURL(audioBlob);
-    };
-
-    mediaRecorderRef.current.stop();
-    mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
-    clearInterval(audioTimerRef.current);
-    setIsRecordingAudio(false);
-    setAudioRecordingTime(0);
-  };
 
   // Typing Input Change Handler
   const handleMessageInputChange = (e) => {
@@ -453,19 +385,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
     }, 1500);
   };
 
-  // Emoji Reaction & Pin Message Handlers
-  const handleToggleReaction = (msg, emoji) => {
-    if (!socket || !msg) return;
-    socket.emit('react_message', {
-      messageId: msg._id,
-      senderId: currentUserId,
-      receiverId: selectedUser ? selectedUser._id : null,
-      emoji,
-      userId: currentUserId,
-    });
-    setActiveReactionMsgId(null);
-  };
-
+  // Pin Message Handler
   const handleTogglePinMessage = (msg) => {
     if (!socket || !msg) return;
     const nextPinned = !msg.isPinned;
@@ -1586,11 +1506,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   <div
                     key={u._id}
                     onClick={() => {
-                      if (!searchQuery || connStatus === 'connected' || u.username === 'nira') {
-                        setSelectedUser(u);
-                        setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
-                        setSearchQuery('');
-                      }
+                      setSelectedUser(u);
+                      setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
+                      setSearchQuery('');
                     }}
                     title={u.name}
                     style={{
@@ -2566,23 +2484,8 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMine ? 'row' : 'row-reverse' }}>
-                        {/* Hover Action Controls (Reactions, Pin, Edit, Delete) */}
+                        {/* Hover Action Controls (Pin, Edit, Delete) */}
                         <div className="msg-hover-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {/* Emoji Quick Reactions */}
-                          <div style={{ display: 'flex', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '2px 4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                            {['❤️', '👍', '😂', '🔥', '😮', '🙏'].map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => handleToggleReaction(msg, emoji)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontSize: '0.9rem', borderRadius: '4px' }}
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-
-                          {/* Pin Message Toggle Button */}
                           <button
                             type="button"
                             onClick={() => handleTogglePinMessage(msg)}
@@ -2780,37 +2683,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                         )}
                       </div>
 
-                      {/* Reaction Pills & Pinned Indicator */}
-                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            marginTop: '3px',
-                          }}
-                        >
-                          <span
-                            style={{
-                              background: '#ffffff',
-                              border: '1.5px solid #cbd5e1',
-                              borderRadius: '12px',
-                              padding: '2px 8px',
-                              fontSize: '0.8rem',
-                              fontWeight: '700',
-                              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            {msg.reactions.map((r, i) => (
-                              <span key={i}>{r.emoji}</span>
-                            ))}
-                            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{msg.reactions.length}</span>
-                          </span>
-                        </div>
-                      )}
+
 
                       {msg.isPinned && (
                         <div style={{ fontSize: '0.72rem', color: '#4f46e5', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
@@ -3001,111 +2874,15 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   </button>
                 </div>
 
-                {isRecordingAudio ? (
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: '16px', padding: '8px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444', fontWeight: '800', fontSize: '0.9rem' }}>
-                      <span className="record-dot"></span>
-                      <span>Recording... {Math.floor(audioRecordingTime / 60)}:{(audioRecordingTime % 60).toString().padStart(2, '0')}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button type="button" onClick={cancelAudioRecording} style={{ background: '#ffffff', border: '1px solid #fecaca', color: '#ef4444', borderRadius: '10px', padding: '6px 12px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}>
-                        Cancel
-                      </button>
-                      <button type="button" onClick={stopAndSendAudioRecording} style={{ background: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '6px 14px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Send size={14} /> Send Voice
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <input
-                      ref={messageInputRef}
-                      type="text"
-                      className="form-input font-semibold"
-                      style={{ paddingLeft: '18px', flex: 1, height: '48px', fontSize: '0.98rem' }}
-                      placeholder={`Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
-                      value={newMessageText}
-                      onChange={handleMessageInputChange}
-                    />
-
-                    {/* Emoji Picker Popover Toggle */}
-                    <div style={{ position: 'relative' }}>
-                      {showEmojiPicker && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: '56px',
-                            right: '0',
-                            background: '#ffffff',
-                            border: '1.5px solid #e2e8f0',
-                            borderRadius: '16px',
-                            padding: '12px',
-                            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(6, 1fr)',
-                            gap: '6px',
-                            zIndex: 100,
-                            width: '240px',
-                          }}
-                        >
-                          {['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '😍', '🥰', '😘', '😋', '😎', '👍', '👎', '🔥', '❤️', '🎉', '✨', '🙏', '💯', '🙌'].map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => {
-                                setNewMessageText((prev) => prev + emoji);
-                                setShowEmojiPicker(false);
-                              }}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px', borderRadius: '8px' }}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        title="Emoji Picker"
-                        style={{
-                          background: '#f1f5f9',
-                          border: 'none',
-                          borderRadius: '14px',
-                          width: '44px',
-                          height: '44px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          color: '#64748b',
-                        }}
-                      >
-                        <Smile size={20} />
-                      </button>
-                    </div>
-
-                    {/* Mic Button for Voice Note */}
-                    <button
-                      type="button"
-                      onClick={startAudioRecording}
-                      title="Record Voice Note"
-                      style={{
-                        background: '#ede9fe',
-                        border: 'none',
-                        borderRadius: '14px',
-                        width: '44px',
-                        height: '44px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        color: '#4f46e5',
-                      }}
-                    >
-                      <Mic size={20} />
-                    </button>
-                  </>
-                )}
+                <input
+                  ref={messageInputRef}
+                  type="text"
+                  className="form-input font-semibold"
+                  style={{ paddingLeft: '18px', flex: 1, height: '48px', fontSize: '0.98rem' }}
+                  placeholder={`Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
+                  value={newMessageText}
+                  onChange={handleMessageInputChange}
+                />
                 <button
                   type="submit"
                   className="btn-primary font-extrabold"
