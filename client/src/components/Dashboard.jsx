@@ -96,6 +96,14 @@ const getFileUrl = (url) => {
 };
 
 export default function Dashboard({ user, onLogout, onUserUpdate }) {
+  const currentUserId = user?._id || user?.id || '';
+  const currentUserName = user?.name || 'User';
+  const currentUserHandle = (user?.username || 'user').toLowerCase();
+  const currentUserEmail = user?.email || 'Not provided';
+  const currentUserGender = user?.gender === 'M' ? 'Male' : user?.gender === 'F' ? 'Female' : 'Other';
+  const currentUserAge = user?.age || 'Not provided';
+  const currentUserMobile = user?.mobile || 'Not provided';
+
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -194,12 +202,6 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const selectedUserRef = useRef(selectedUser);
   const socketRef = useRef(socket);
 
-  const currentUserId = user?._id || user?.id || '';
-  const currentUserName = user?.name || 'User';
-  const currentUserHandle = (user?.username || 'user').toLowerCase();
-  const currentUserEmail = user?.email || 'Not provided';
-  const currentUserGender = user?.gender === 'M' ? 'Male' : user?.gender === 'F' ? 'Female' : 'Other';
-
   const formatLastMessagePreview = (msg) => {
     if (!msg) return '';
     if (msg.fileUrl) {
@@ -231,9 +233,6 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
       return '';
     }
   };
-
-  const currentUserAge = user?.age || 'N/A';
-  const currentUserMobile = user?.mobile || 'N/A';
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
