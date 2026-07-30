@@ -2301,7 +2301,7 @@ export default function Dashboard({ user, onLogout }) {
             </div>
           </>
         ) : (
-          /* Empty Chat State */
+          /* NO CHAT SELECTED STATE (STUNNING MODERN UI WITH RICH DETAILS & ONBOARDING GUIDE) */
           <div
             style={{
               flex: 1,
@@ -2309,48 +2309,141 @@ export default function Dashboard({ user, onLogout }) {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '40px',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
               textAlign: 'center',
-              background: '#f8fafc',
+              padding: '36px 24px',
+              overflowY: 'auto',
             }}
           >
+            {/* Glowing Icon Badge */}
             <div
               style={{
-                width: '88px',
-                height: '88px',
-                borderRadius: '50%',
-                background: 'rgba(79, 70, 229, 0.1)',
-                color: '#4f46e5',
+                width: '84px',
+                height: '84px',
+                borderRadius: '24px',
+                background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: '24px',
+                marginBottom: '22px',
+                boxShadow: '0 12px 30px -6px rgba(79, 70, 229, 0.4)',
               }}
             >
-              <MessageSquare size={44} />
+              <Sparkles size={42} strokeWidth={2} />
             </div>
 
-            <h3 className="font-extrabold" style={{ fontSize: '1.65rem', color: '#0f172a', marginBottom: '10px' }}>
-              Nira Chat Real-Time Messaging
-            </h3>
-            <p style={{ color: '#64748b', fontWeight: '600', maxWidth: '450px', fontSize: '0.95rem', marginBottom: '28px' }}>
-              Search any user by their <span style={{ color: '#4f46e5', fontWeight: '800' }}>@username</span> in the search bar on the left to start a real-time message conversation!
+            <h2 className="font-extrabold" style={{ fontSize: '1.85rem', color: '#0f172a', marginBottom: '10px', letterSpacing: '-0.5px' }}>
+              Welcome to Nira Chat
+            </h2>
+
+            <p style={{ color: '#64748b', fontWeight: '600', maxWidth: '520px', fontSize: '0.96rem', lineHeight: '1.55', marginBottom: '28px' }}>
+              Select a friend from your sidebar or search any user handle to start instant 0ms real-time messaging!
             </p>
 
+            {/* Feature Highlight Cards Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '14px',
+                maxWidth: '680px',
+                width: '100%',
+                marginBottom: '32px',
+              }}
+            >
+              {/* Feature 1: Instant 0ms Chat */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  textAlign: 'left',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4f46e5', fontWeight: '800', fontSize: '0.9rem', marginBottom: '6px' }}>
+                  <Sparkles size={16} /> 0ms Instant Chat
+                </div>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0, fontWeight: '600', lineHeight: '1.4' }}>
+                  WebSocket engine powers zero delay message delivery & live read receipts.
+                </p>
+              </div>
+
+              {/* Feature 2: Connect System */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  textAlign: 'left',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#059669', fontWeight: '800', fontSize: '0.9rem', marginBottom: '6px' }}>
+                  <UserPlus size={16} /> Connect System
+                </div>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0, fontWeight: '600', lineHeight: '1.4' }}>
+                  Search @username to send connection requests & build your friends directory.
+                </p>
+              </div>
+
+              {/* Feature 3: File & Media Sharing */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  textAlign: 'left',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d97706', fontWeight: '800', fontSize: '0.9rem', marginBottom: '6px' }}>
+                  <ImageIcon size={16} /> Media Sharing
+                </div>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0, fontWeight: '600', lineHeight: '1.4' }}>
+                  Send photos, videos, audio clips, and documents instantly in chat.
+                </p>
+              </div>
+
+              {/* Feature 4: Privacy & Password Lock */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  textAlign: 'left',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontWeight: '800', fontSize: '0.9rem', marginBottom: '6px' }}>
+                  <ShieldAlert size={16} /> Password Protected
+                </div>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0, fontWeight: '600', lineHeight: '1.4' }}>
+                  Secure password verification for account & message history deletion.
+                </p>
+              </div>
+            </div>
+
+            {/* Current User Handle Pill */}
             <div
               style={{
                 background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '16px',
-                padding: '18px 24px',
+                border: '1px solid #cbd5e1',
+                borderRadius: '20px',
+                padding: '12px 24px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+                gap: '10px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
               }}
             >
-              <AtSign size={22} style={{ color: '#4f46e5' }} />
-              <span style={{ fontWeight: '800', fontSize: '0.98rem', color: '#0f172a' }}>
+              <AtSign size={20} style={{ color: '#4f46e5' }} />
+              <span style={{ fontWeight: '800', fontSize: '0.95rem', color: '#0f172a' }}>
                 Your handle: <strong style={{ color: '#4f46e5' }}>@{currentUserHandle}</strong>
               </span>
             </div>

@@ -612,12 +612,54 @@ router.get('/messages/:user1/:user2', async (req, res) => {
           { sender: user2, receiver: user1 },
         ],
       }).sort({ createdAt: 1 });
+
+      // If no messages exist and one participant is Nira Bot, seed initial welcome & user guide message!
+      if (messages.length === 0) {
+        const niraBot = await User.findOne({ username: 'nira' });
+        if (niraBot) {
+          const isNiraBotInvolved = String(niraBot._id) === String(user1) || String(niraBot._id) === String(user2);
+          if (isNiraBotInvolved) {
+            const recipientUser = String(niraBot._id) === String(user1) ? user2 : user1;
+            const welcomeText = `👋 Hi there! I'm Nira Bot, your official assistant on Nira Chat! 🚀\n\nHere is your complete guide on how to use Nira Chat:\n\n1️⃣ **Search Users**: Search any registered user by their **@username** in the left sidebar.\n2️⃣ **Connect**: Click **"+ Connect"** to send them a connection request.\n3️⃣ **Accept**: Go to the **"Requests"** tab to accept incoming friend requests.\n4️⃣ **Chat & Share**: Click **"Chat"** to start instant messaging! Use the **"+"** button to share photos, videos, audio, or files.\n5️⃣ **Settings & Controls**: Access account settings, unbind connections, or delete your account anytime.\n\nType any message below to chat with me or test features! 💬✨`;
+
+            const welcomeMsg = await Message.create({
+              sender: niraBot._id,
+              receiver: recipientUser,
+              text: welcomeText,
+              isRead: false,
+            });
+            messages = [welcomeMsg];
+          }
+        }
+      }
     } else {
       messages = memoryMessages.filter(
         (m) =>
           (m.sender === user1 && m.receiver === user2) ||
           (m.sender === user2 && m.receiver === user1)
       );
+
+      if (messages.length === 0) {
+        const niraBot = memoryUsers.find((u) => u.username === 'nira');
+        if (niraBot) {
+          const isNiraBotInvolved = String(niraBot._id) === String(user1) || String(niraBot._id) === String(user2);
+          if (isNiraBotInvolved) {
+            const recipientUser = String(niraBot._id) === String(user1) ? user2 : user1;
+            const welcomeText = `👋 Hi there! I'm Nira Bot, your official assistant on Nira Chat! 🚀\n\nHere is your complete guide on how to use Nira Chat:\n\n1️⃣ **Search Users**: Search any registered user by their **@username** in the left sidebar.\n2️⃣ **Connect**: Click **"+ Connect"** to send them a connection request.\n3️⃣ **Accept**: Go to the **"Requests"** tab to accept incoming friend requests.\n4️⃣ **Chat & Share**: Click **"Chat"** to start instant messaging! Use the **"+"** button to share photos, videos, audio, or files.\n5️⃣ **Settings & Controls**: Access account settings, unbind connections, or delete your account anytime.\n\nType any message below to chat with me or test features! 💬✨`;
+
+            const welcomeMsg = {
+              _id: 'msg_welcome_' + Date.now(),
+              sender: niraBot._id,
+              receiver: recipientUser,
+              text: welcomeText,
+              isRead: false,
+              createdAt: new Date(),
+            };
+            memoryMessages.push(welcomeMsg);
+            messages = [welcomeMsg];
+          }
+        }
+      }
     }
 
     res.json({ success: true, messages });
