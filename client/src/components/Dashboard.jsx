@@ -149,6 +149,14 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
+  // Mobile Responsive State
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // File upload states
   const [selectedFile, setSelectedFile] = useState(null);       // { file, previewUrl, name, type, size }
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -980,18 +988,21 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
         maxWidth: '100%',
         background: '#ffffff',
         display: 'grid',
-        gridTemplateColumns: sidebarCollapsed ? '76px 1fr' : '320px 1fr',
+        gridTemplateColumns: isMobile
+          ? '1fr'
+          : sidebarCollapsed ? '76px 1fr' : '320px 1fr',
         overflow: 'hidden',
         position: 'relative',
         transition: 'grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
       {/* LEFT SIDEBAR: Search Users & User Directory */}
+      {/* On mobile: only show sidebar when no user is selected */}
       <div
         style={{
           background: '#f8fafc',
-          borderRight: '1px solid #e2e8f0',
-          display: 'flex',
+          borderRight: isMobile ? 'none' : '1px solid #e2e8f0',
+          display: isMobile && selectedUser ? 'none' : 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
         }}
@@ -1613,7 +1624,14 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
       </div>
 
       {/* RIGHT MAIN AREA (FULL PAGE CHAT OR SETTINGS DASHBOARD) */}
-      <div style={{ display: 'flex', flexDirection: 'column', background: '#ffffff', height: '100%', minHeight: 0, overflow: 'hidden' }}>
+      <div style={{
+        display: isMobile && !selectedUser && !showSettingsPanel ? 'none' : 'flex',
+        flexDirection: 'column',
+        background: '#ffffff',
+        height: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
+      }}>
         {showSettingsPanel ? (
           /* SETTINGS DASHBOARD OPENED DIRECTLY IN RIGHT PANEL */
           <div
@@ -1623,11 +1641,31 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               flexDirection: 'column',
               background: '#f8fafc',
               overflowY: 'auto',
-              padding: '36px 60px 36px 44px',
+              padding: isMobile ? '20px 16px 20px 16px' : '36px 60px 36px 44px',
             }}
           >
             {/* Clean Settings Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px' }}>
+              {/* Mobile back to list button */}
+              {isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsPanel(false)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '8px 10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#0f172a',
+                    flexShrink: 0,
+                  }}
+                >
+                  <ArrowLeft size={20} strokeWidth={2.5} />
+                </button>
+              )}
               <div
                 style={{
                   width: '46px',
@@ -2024,7 +2062,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             {/* Active Conversation Header - LARGER FONT SIZE FOR CONTACT NAME */}
             <div
               style={{
-                padding: '18px 28px',
+                padding: isMobile ? '14px 16px' : '18px 28px',
                 borderBottom: '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
@@ -2033,12 +2071,37 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 flexShrink: 0,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px' }}>
+                {/* ← MOBILE BACK BUTTON */}
+                {isMobile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedUser(null);
+                      setMessages([]);
+                    }}
+                    style={{
+                      background: '#f1f5f9',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0f172a',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <ArrowLeft size={20} strokeWidth={2.5} />
+                  </button>
+                )}
+
                 <div style={{ position: 'relative' }}>
                   <div
                     style={{
-                      width: '50px',
-                      height: '50px',
+                      width: isMobile ? '40px' : '50px',
+                      height: isMobile ? '40px' : '50px',
                       borderRadius: '50%',
                       background: 'linear-gradient(135deg, #020617 0%, #1e1b4b 100%)',
                       color: '#ffffff',
@@ -2046,7 +2109,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: '900',
-                      fontSize: '1.3rem',
+                      fontSize: isMobile ? '1.1rem' : '1.3rem',
                     }}
                   >
                     {(selectedUser.name || 'U').charAt(0).toUpperCase()}
@@ -2056,25 +2119,25 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
                 <div>
                   {/* LARGER ACTIVE CONTACT NAME */}
-                  <h3 className="font-extrabold" style={{ fontSize: '1.35rem', color: '#0f172a', lineHeight: 1.2 }}>
+                  <h3 className="font-extrabold" style={{ fontSize: isMobile ? '1.1rem' : '1.35rem', color: '#0f172a', lineHeight: 1.2 }}>
                     {selectedUser.name}
                   </h3>
-                  <p style={{ fontSize: '0.92rem', color: '#4f46e5', fontWeight: '800', marginTop: '2px' }}>
+                  <p style={{ fontSize: isMobile ? '0.8rem' : '0.92rem', color: '#4f46e5', fontWeight: '800', marginTop: '2px' }}>
                     @{(selectedUser.username || selectedUser.email?.split('@')[0] || 'user').toLowerCase()}
                   </p>
                 </div>
               </div>
 
               {/* Online / Offline Status Badge & Disconnect Button */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '14px' }}>
                 <div
                   style={{
-                    padding: '7px 16px',
+                    padding: isMobile ? '5px 10px' : '7px 16px',
                     borderRadius: '20px',
                     background: isUserOnline(selectedUser._id) ? '#ecfdf5' : '#f8fafc',
                     border: `1.5px solid ${isUserOnline(selectedUser._id) ? '#a7f3d0' : '#e2e8f0'}`,
                     color: isUserOnline(selectedUser._id) ? '#047857' : '#64748b',
-                    fontSize: '0.85rem',
+                    fontSize: isMobile ? '0.75rem' : '0.85rem',
                     fontWeight: '800',
                     display: 'flex',
                     alignItems: 'center',
@@ -2082,7 +2145,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   }}
                 >
                   <Circle size={8} fill={isUserOnline(selectedUser._id) ? '#10b981' : '#cbd5e1'} color="none" />
-                  {isUserOnline(selectedUser._id) ? '🟢 Online Now' : '⚪ Offline'}
+                  {isMobile
+                    ? (isUserOnline(selectedUser._id) ? 'Online' : 'Offline')
+                    : (isUserOnline(selectedUser._id) ? '🟢 Online Now' : '⚪ Offline')}
                 </div>
 
                 {selectedUser.username !== 'nira' && (
@@ -2094,19 +2159,19 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                       background: '#fef2f2',
                       border: '1.5px solid #fecaca',
                       color: '#ef4444',
-                      padding: '7px 14px',
+                      padding: isMobile ? '6px 10px' : '7px 14px',
                       borderRadius: '16px',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
                       fontWeight: 800,
-                      fontSize: '0.82rem',
+                      fontSize: isMobile ? '0.75rem' : '0.82rem',
                       boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    <UserX size={15} /> Disconnect
+                    <UserX size={15} /> {isMobile ? '' : 'Disconnect'}
                   </button>
                 )}
               </div>
@@ -2122,7 +2187,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               style={{
                 flex: 1,
                 minHeight: 0,
-                padding: '28px 32px',
+                padding: isMobile ? '16px 12px' : '28px 32px',
                 overflowY: 'auto',
                 background: isDraggingOver ? 'rgba(79,70,229,0.06)' : '#f8fafc',
                 display: 'flex',
@@ -2436,12 +2501,12 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               <form
                 onSubmit={handleSendMessage}
                 style={{
-                  padding: '14px 28px',
-                  height: '72px',
+                  padding: isMobile ? '10px 12px' : '14px 28px',
+                  height: isMobile ? '62px' : '72px',
                   boxSizing: 'border-box',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
+                  gap: isMobile ? '8px' : '12px',
                 }}
               >
                 {/* Styled + Button with Attachment Options Popover */}
