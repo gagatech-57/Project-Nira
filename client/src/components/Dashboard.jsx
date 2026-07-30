@@ -2177,7 +2177,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
           </div>
         ) : selectedUser ? (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
-            {/* Active Conversation Header - STICKY TOP HEADER */}
+            {/* Active Conversation Header - FIXED AT TOP OF FLEX CONTAINER */}
             <div
               style={{
                 padding: isMobile ? '12px 14px' : '18px 28px',
@@ -2187,11 +2187,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 justifyContent: 'space-between',
                 background: '#ffffff',
                 flexShrink: 0,
-                position: 'sticky',
-                top: 0,
-                zIndex: 100,
                 boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
                 width: '100%',
+                zIndex: 10,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px' }}>
