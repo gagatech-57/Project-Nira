@@ -47,7 +47,7 @@ import {
   disconnectConnection,
   deleteUserAccount,
 } from '../services/api';
-import { UserCheck, UserPlus, Clock, Check, UserX, Unlink, UserMinus, ShieldAlert } from 'lucide-react';
+import { UserCheck, UserPlus, Clock, Check, UserX, Unlink, UserMinus, ShieldAlert, Sliders, MessageCircle } from 'lucide-react';
 
 const MenuLinesIcon = ({ size = 20, color = 'currentColor' }) => (
   <svg
@@ -1500,34 +1500,31 @@ export default function Dashboard({ user, onLogout }) {
               transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
-            <MenuLinesIcon size={19} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
+            <Sliders size={18} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
             {!sidebarCollapsed && 'Settings'}
           </button>
 
-          {!sidebarCollapsed && (
-            <button
-              onClick={onLogout}
-              title="Sign Out"
-              style={{
-                border: '1px solid #fecaca',
-                background: '#fef2f2',
-                color: '#ef4444',
-                padding: '10px 16px',
-                borderRadius: '14px',
-                fontWeight: '800',
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                whiteSpace: 'nowrap',
-                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
-                transition: 'all 0.22s ease',
-              }}
-            >
-              <LogOut size={16} strokeWidth={2.5} /> Logout
-            </button>
-          )}
+          <button
+            onClick={onLogout}
+            title="Sign Out"
+            style={{
+              border: '1.5px solid #fecaca',
+              background: '#fef2f2',
+              color: '#ef4444',
+              width: '42px',
+              height: '42px',
+              borderRadius: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
+              transition: 'all 0.22s ease',
+            }}
+          >
+            <LogOut size={18} strokeWidth={2.5} />
+          </button>
         </div>
       </div>
 
