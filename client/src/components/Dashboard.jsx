@@ -2476,16 +2476,31 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                       className="msg-row"
                       style={{
                         alignSelf: isMine ? 'flex-end' : 'flex-start',
-                        maxWidth: '75%',
+                        maxWidth: isMobile ? '88%' : '75%',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: isMine ? 'flex-end' : 'flex-start',
-                        margin: '4px 0',
+                        margin: '6px 0',
+                        position: 'relative',
+                        width: 'fit-content',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMine ? 'row' : 'row-reverse' }}>
-                        {/* Hover Action Controls (Pin, Edit, Delete) */}
-                        <div className="msg-hover-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: 'fit-content', maxWidth: '100%' }}>
+                        {/* Hover Action Controls (Pin, Edit, Delete) - Positioned Absolutely */}
+                        <div
+                          className="msg-hover-actions"
+                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            [isMine ? 'right' : 'left']: 'calc(100% + 6px)',
+                            display: isMobile ? 'none' : 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            whiteSpace: 'nowrap',
+                            zIndex: 10,
+                          }}
+                        >
                           <button
                             type="button"
                             onClick={() => handleTogglePinMessage(msg)}
@@ -2557,7 +2572,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
                         <div
                           style={{
-                            padding: msg.fileType === 'image' ? '6px' : '14px 20px',
+                            padding: msg.fileType === 'image' ? '6px' : '12px 18px',
                             borderRadius: isMine ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
                             background: isMine
                               ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
@@ -2567,11 +2582,13 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                             boxShadow: isMine
                               ? '0 6px 18px rgba(79, 70, 229, 0.22)'
                               : '0 4px 10px rgba(0,0,0,0.03)',
-                            fontSize: '0.98rem',
+                            fontSize: '0.96rem',
                             fontWeight: '600',
-                            lineHeight: '1.48',
+                            lineHeight: '1.45',
                             wordBreak: 'break-word',
-                            maxWidth: '320px',
+                            whiteSpace: 'pre-wrap',
+                            maxWidth: '100%',
+                            width: 'fit-content',
                             overflow: 'hidden',
                           }}
                         >
@@ -2878,8 +2895,8 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   ref={messageInputRef}
                   type="text"
                   className="form-input font-semibold"
-                  style={{ paddingLeft: '18px', flex: 1, height: '48px', fontSize: '0.98rem' }}
-                  placeholder={`Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
+                  style={{ paddingLeft: '14px', paddingRight: '14px', flex: 1, height: '48px', fontSize: '0.95rem', minWidth: 0 }}
+                  placeholder={isMobile ? 'Type a message...' : `Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
                   value={newMessageText}
                   onChange={handleMessageInputChange}
                 />
@@ -2888,10 +2905,11 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   className="btn-primary font-extrabold"
                   style={{
                     width: 'auto',
-                    padding: '14px 28px',
+                    padding: isMobile ? '10px 16px' : '14px 28px',
                     marginTop: 0,
                     borderRadius: '14px',
-                    fontSize: '0.98rem',
+                    fontSize: isMobile ? '0.9rem' : '0.98rem',
+                    flexShrink: 0,
                   }}
                   disabled={isUploading || (!newMessageText.trim() && !selectedFile)}
                 >
