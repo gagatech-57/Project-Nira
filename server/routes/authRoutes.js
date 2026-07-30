@@ -311,7 +311,6 @@ router.get('/users', async (req, res) => {
           $or: [
             { username: { $regex: query, $options: 'i' } },
             { name: { $regex: query, $options: 'i' } },
-            { email: { $regex: query, $options: 'i' } },
           ],
         })
           .select('-password')
@@ -323,9 +322,8 @@ router.get('/users', async (req, res) => {
       users = memoryUsers
         .filter((u) =>
           !query ||
-          u.username.includes(query) ||
-          u.name.toLowerCase().includes(query) ||
-          u.email.includes(query)
+          u.username?.toLowerCase().includes(query) ||
+          u.name?.toLowerCase().includes(query)
         )
         .map(({ password, ...rest }) => rest);
     }
