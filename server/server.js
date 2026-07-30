@@ -200,6 +200,64 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('typing', ({ senderId, receiverId, username }) => {
+    if (!receiverId) return;
+    io.to(receiverId.toString()).emit('user_typing', { senderId: senderId?.toString(), username });
+  });
+
+  socket.on('stop_typing', ({ senderId, receiverId }) => {
+    if (!receiverId) return;
+    io.to(receiverId.toString()).emit('user_stop_typing', { senderId: senderId?.toString() });
+  });
+
+  socket.on('react_message', async ({ messageId, senderId, receiverId, emoji, userId }) => {
+    if (!messageId || !emoji || !userId) return;
+    const sStr = senderId ? senderId.toString() : '';
+    const rStr = receiverId ? receiverId.toString() : '';
+    const uStr = userId.toString();
+
+    let updatedReactions = [];
+    try {
+      if (require('mongoose').connection.readyState === 1) {
+        const msg = await Message.findById(messageId);
+        if (msg) {
+          const existingIndex = msg.reactions.findIndex((r) => r.user === uStr);
+          if (existingIndex !== -1) {
+            if (msg.reactions[existingIndex].emoji === emoji) {
+              msg.reactions.splice(existingIndex, 1); // Toggle off
+            } else {
+              msg.reactions[existingIndex].emoji = emoji; // Change emoji
+            }
+          } else {
+            msg.reactions.push({ user: uStr, emoji });
+          }
+          await msg.save();
+          updatedReactions = msg.reactions;
+        }
+      }
+    } catch (e) {
+      console.error('Error handling reaction:', e);
+    }
+
+    if (sStr) io.to(sStr).emit('message_reacted', { messageId, reactions: updatedReactions });
+    if (rStr) io.to(rStr).emit('message_reacted', { messageId, reactions: updatedReactions });
+  });
+
+  socket.on('pin_message', async ({ messageId, senderId, receiverId, isPinned }) => {
+    if (!messageId) return;
+    const sStr = senderId ? senderId.toString() : '';
+    const rStr = receiverId ? receiverId.toString() : '';
+
+    try {
+      if (require('mongoose').connection.readyState === 1) {
+        await Message.findByIdAndUpdate(messageId, { isPinned: Boolean(isPinned) });
+      }
+    } catch (e) {}
+
+    if (sStr) io.to(sStr).emit('message_pinned', { messageId, isPinned: Boolean(isPinned) });
+    if (rStr) io.to(rStr).emit('message_pinned', { messageId, isPinned: Boolean(isPinned) });
+  });
+
   socket.on('edit_message', ({ messageId, receiverId, text }) => {
     if (!messageId || !receiverId) return;
     const rStr = receiverId.toString();

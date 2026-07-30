@@ -29,6 +29,12 @@ import {
   Pencil,
   Trash2,
   Edit3,
+  Mic,
+  Pin,
+  Smile,
+  Lock,
+  Bell,
+  Volume2,
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import {
@@ -195,6 +201,41 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
   const [editingMessage, setEditingMessage] = useState(null); // { _id, text }
   const [deleteConfirmMsg, setDeleteConfirmMsg] = useState(null); // msg to delete
 
+  // ====== UPGRADED FEATURE STATES ======
+  // 1. Live Typing Indicator State
+  const [isTypingPartner, setIsTypingPartner] = useState(false);
+  const typingTimeoutRef = useRef(null);
+
+  // 2. Emoji Picker & Reaction Bar States
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [activeReactionMsgId, setActiveReactionMsgId] = useState(null);
+
+  // 3. Audio Voice Recording States
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [audioRecordingTime, setAudioRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const audioTimerRef = useRef(null);
+
+  // 4. Pinned Users & In-Chat Search States
+  const [pinnedUserIds, setPinnedUserIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`pinned_users_${currentUserId}`) || '[]');
+    } catch (e) { return []; }
+  });
+  const togglePinUser = (userId, e) => {
+    if (e) e.stopPropagation();
+    setPinnedUserIds((prev) => {
+      const exists = prev.includes(userId);
+      const updated = exists ? prev.filter((id) => id !== userId) : [...prev, userId];
+      localStorage.setItem(`pinned_users_${currentUserId}`, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const [showInChatSearch, setShowInChatSearch] = useState(false);
+  const [inChatSearchQuery, setInChatSearchQuery] = useState('');
+
   const messagesContainerRef = useRef(null);
   const isUserAtBottomRef = useRef(true);
   const messageInputRef = useRef(null);
@@ -309,6 +350,133 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
     }
   };
 
+  // Web Audio Notification Chime
+  const playNotificationChime = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.28);
+    } catch (e) {}
+  };
+
+  const triggerDesktopNotification = (senderName, bodyText) => {
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`💬 Message from ${senderName || 'Nira User'}`, {
+          body: bodyText || 'Sent you a message',
+          icon: '/favicon.ico',
+        });
+      }
+    } catch (e) {}
+  };
+
+  // Audio Voice Recording Handlers
+  const startAudioRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.start();
+      setIsRecordingAudio(true);
+      setAudioRecordingTime(0);
+
+      audioTimerRef.current = setInterval(() => {
+        setAudioRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      alert('Microphone access is required to record voice notes.');
+    }
+  };
+
+  const cancelAudioRecording = () => {
+    if (mediaRecorderRef.current && isRecordingAudio) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+    }
+    clearInterval(audioTimerRef.current);
+    setIsRecordingAudio(false);
+    setAudioRecordingTime(0);
+    audioChunksRef.current = [];
+  };
+
+  const stopAndSendAudioRecording = () => {
+    if (!mediaRecorderRef.current || !isRecordingAudio) return;
+
+    mediaRecorderRef.current.onstop = async () => {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = reader.result;
+        const fileData = {
+          fileUrl: base64Audio,
+          fileName: `voice_note_${Date.now()}.webm`,
+          fileType: 'audio',
+          fileSize: audioBlob.size,
+        };
+        await handleSendMessage(null, fileData);
+      };
+      reader.readAsDataURL(audioBlob);
+    };
+
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+    clearInterval(audioTimerRef.current);
+    setIsRecordingAudio(false);
+    setAudioRecordingTime(0);
+  };
+
+  // Typing Input Change Handler
+  const handleMessageInputChange = (e) => {
+    setNewMessageText(e.target.value);
+    if (!socket || !selectedUser) return;
+
+    socket.emit('typing', { senderId: currentUserId, receiverId: selectedUser._id, username: currentUserName });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('stop_typing', { senderId: currentUserId, receiverId: selectedUser._id });
+    }, 1500);
+  };
+
+  // Emoji Reaction & Pin Message Handlers
+  const handleToggleReaction = (msg, emoji) => {
+    if (!socket || !msg) return;
+    socket.emit('react_message', {
+      messageId: msg._id,
+      senderId: currentUserId,
+      receiverId: selectedUser ? selectedUser._id : null,
+      emoji,
+      userId: currentUserId,
+    });
+    setActiveReactionMsgId(null);
+  };
+
+  const handleTogglePinMessage = (msg) => {
+    if (!socket || !msg) return;
+    const nextPinned = !msg.isPinned;
+    socket.emit('pin_message', {
+      messageId: msg._id,
+      senderId: currentUserId,
+      receiverId: selectedUser ? selectedUser._id : null,
+      isPinned: nextPinned,
+    });
+  };
+
   // Track user scroll position
   const handleScroll = () => {
     if (!messagesContainerRef.current) return;
@@ -343,6 +511,13 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
     newSocket.on('receive_message', (incomingMsg) => {
       const otherUser = incomingMsg.sender === currentUserId ? incomingMsg.receiver : incomingMsg.sender;
+
+      if (incomingMsg.sender && String(incomingMsg.sender) !== String(currentUserId)) {
+        playNotificationChime();
+        if (document.hidden) {
+          triggerDesktopNotification('Nira Chat', incomingMsg.text || 'Sent you a new message');
+        }
+      }
 
       if (otherUser) {
         const msgTime = new Date(incomingMsg.createdAt || Date.now()).getTime();
@@ -431,6 +606,33 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
           prevMsgs.map((m) => (String(m.sender) === String(currentUserId) ? { ...m, isRead: true } : m))
         );
       }
+    });
+
+    newSocket.on('user_typing', ({ senderId, username }) => {
+      const selUser = selectedUserRef.current;
+      if (selUser && String(selUser._id) === String(senderId)) {
+        setIsTypingPartner(true);
+        setTypingPartnerName(username || selUser.name || 'User');
+      }
+    });
+
+    newSocket.on('user_stop_typing', ({ senderId }) => {
+      const selUser = selectedUserRef.current;
+      if (selUser && String(selUser._id) === String(senderId)) {
+        setIsTypingPartner(false);
+      }
+    });
+
+    newSocket.on('message_reacted', ({ messageId, reactions }) => {
+      setMessages((prevMsgs) =>
+        prevMsgs.map((m) => (String(m._id) === String(messageId) ? { ...m, reactions } : m))
+      );
+    });
+
+    newSocket.on('message_pinned', ({ messageId, isPinned }) => {
+      setMessages((prevMsgs) =>
+        prevMsgs.map((m) => (String(m._id) === String(messageId) ? { ...m, isPinned } : m))
+      );
     });
 
     newSocket.on('message_edited', ({ messageId, text }) => {
@@ -1361,6 +1563,10 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
           ) : (
             [...usersList]
               .sort((a, b) => {
+                const isPinnedA = pinnedUserIds.includes(a._id) ? 1 : 0;
+                const isPinnedB = pinnedUserIds.includes(b._id) ? 1 : 0;
+                if (isPinnedA !== isPinnedB) return isPinnedB - isPinnedA;
+
                 const timeA = lastMessageTimestamps[a._id] || 0;
                 const timeB = lastMessageTimestamps[b._id] || 0;
                 if (timeA !== timeB) return timeB - timeA;
@@ -1374,6 +1580,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 const lastMsgTime = typeof lastMsgData === 'object' ? lastMsgData.time : '';
                 const unreadCount = unreadCounts[u._id] || 0;
                 const connStatus = connectionStatuses[u._id] || (u.username === 'nira' ? 'connected' : 'none');
+                const isUserPinned = pinnedUserIds.includes(u._id);
 
                 return (
                   <div
@@ -1423,9 +1630,19 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
                       {!sidebarCollapsed && (
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <h4 className="font-extrabold" style={{ fontSize: '1.08rem', color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {u.name}
-                          </h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <h4 className="font-extrabold" style={{ fontSize: '1.08rem', color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {u.name}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={(e) => togglePinUser(u._id, e)}
+                              title={isUserPinned ? 'Unpin contact' : 'Pin contact to top'}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: isUserPinned ? '#4f46e5' : '#cbd5e1' }}
+                            >
+                              <Pin size={13} style={{ transform: isUserPinned ? 'rotate(-45deg)' : 'none', fill: isUserPinned ? '#4f46e5' : 'none' }} />
+                            </button>
+                          </div>
                           <p
                             style={{
                               fontSize: '0.85rem',
@@ -2103,14 +2320,67 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   <h3 className="font-extrabold" style={{ fontSize: isMobile ? '1.1rem' : '1.35rem', color: '#0f172a', lineHeight: 1.2 }}>
                     {selectedUser.name}
                   </h3>
-                  <p style={{ fontSize: isMobile ? '0.8rem' : '0.92rem', color: '#4f46e5', fontWeight: '800', marginTop: '2px' }}>
-                    @{(selectedUser.username || selectedUser.email?.split('@')[0] || 'user').toLowerCase()}
-                  </p>
+                  {isTypingPartner ? (
+                    <p style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <span>typing</span>
+                      <span className="typing-dot"></span>
+                      <span className="typing-dot"></span>
+                      <span className="typing-dot"></span>
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: isMobile ? '0.8rem' : '0.92rem', color: '#4f46e5', fontWeight: '800', marginTop: '2px' }}>
+                      @{(selectedUser.username || selectedUser.email?.split('@')[0] || 'user').toLowerCase()}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Online / Offline Status Badge & Disconnect Button */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '14px' }}>
+              {/* Controls: E2EE Security Badge, In-Chat Search, Online Status & Disconnect Button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
+                {/* 🔒 End-to-End Encrypted Badge */}
+                {!isMobile && (
+                  <div
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      background: '#f0fdf4',
+                      border: '1.5px solid #bbf7d0',
+                      color: '#15803d',
+                      fontSize: '0.78rem',
+                      fontWeight: '800',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <Lock size={12} />
+                    <span>E2EE Encrypted</span>
+                  </div>
+                )}
+
+                {/* In-Chat Search Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowInChatSearch(!showInChatSearch)}
+                  title="Search inside conversation"
+                  style={{
+                    background: showInChatSearch ? '#4f46e5' : '#f1f5f9',
+                    color: showInChatSearch ? '#ffffff' : '#475569',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: isMobile ? '6px 10px' : '8px 12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: '800',
+                    fontSize: '0.8rem',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Search size={15} />
+                  {!isMobile && <span>Search</span>}
+                </button>
                 <div
                   style={{
                     padding: isMobile ? '5px 10px' : '7px 16px',
@@ -2157,6 +2427,55 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 )}
               </div>
             </div>
+
+            {/* In-Chat Search Toolbar */}
+            {showInChatSearch && (
+              <div
+                style={{
+                  padding: '10px 20px',
+                  background: '#f1f5f9',
+                  borderBottom: '1px solid #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <Search size={16} style={{ color: '#64748b' }} />
+                <input
+                  type="text"
+                  placeholder="Search in this conversation..."
+                  value={inChatSearchQuery}
+                  onChange={(e) => setInChatSearchQuery(e.target.value)}
+                  autoFocus
+                  style={{
+                    flex: 1,
+                    background: '#ffffff',
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: '10px',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    fontWeight: '700',
+                    outline: 'none',
+                  }}
+                />
+                {inChatSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setInChatSearchQuery('')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontWeight: '800' }}
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setShowInChatSearch(false); setInChatSearchQuery(''); }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            )}
 
             {/* Chat Message Stream - with drag-and-drop */}
             <div
@@ -2245,32 +2564,68 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMine ? 'row' : 'row-reverse' }}>
-                        {/* Hover Action Controls (Edit & Delete) for sent messages */}
-                        {isMine && (
-                          <div className="msg-hover-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {msg.text && (
+                        {/* Hover Action Controls (Reactions, Pin, Edit, Delete) */}
+                        <div className="msg-hover-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {/* Emoji Quick Reactions */}
+                          <div style={{ display: 'flex', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '2px 4px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                            {['❤️', '👍', '😂', '🔥', '😮', '🙏'].map((emoji) => (
                               <button
+                                key={emoji}
                                 type="button"
-                                onClick={() => handleStartEdit(msg)}
-                                title="Edit Message"
-                                style={{
-                                  background: '#ede9fe',
-                                  border: 'none',
-                                  borderRadius: '8px',
-                                  padding: '5px 8px',
-                                  cursor: 'pointer',
-                                  color: '#4f46e5',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  fontSize: '0.74rem',
-                                  fontWeight: '700',
-                                  boxShadow: '0 2px 6px rgba(79,70,229,0.1)',
-                                }}
+                                onClick={() => handleToggleReaction(msg, emoji)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontSize: '0.9rem', borderRadius: '4px' }}
                               >
-                                <Pencil size={12} /> Edit
+                                {emoji}
                               </button>
-                            )}
+                            ))}
+                          </div>
+
+                          {/* Pin Message Toggle Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePinMessage(msg)}
+                            title={msg.isPinned ? 'Unpin message' : 'Pin message'}
+                            style={{
+                              background: msg.isPinned ? '#e0e7ff' : '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '8px',
+                              padding: '5px 8px',
+                              cursor: 'pointer',
+                              color: msg.isPinned ? '#4f46e5' : '#64748b',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '0.74rem',
+                              fontWeight: '700',
+                            }}
+                          >
+                            <Pin size={12} style={{ transform: msg.isPinned ? 'rotate(-45deg)' : 'none', fill: msg.isPinned ? '#4f46e5' : 'none' }} />
+                          </button>
+
+                          {isMine && msg.text && (
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(msg)}
+                              title="Edit Message"
+                              style={{
+                                background: '#ede9fe',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '5px 8px',
+                                cursor: 'pointer',
+                                color: '#4f46e5',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '0.74rem',
+                                fontWeight: '700',
+                                boxShadow: '0 2px 6px rgba(79,70,229,0.1)',
+                              }}
+                            >
+                              <Pencil size={12} /> Edit
+                            </button>
+                          )}
+                          {isMine && (
                             <button
                               type="button"
                               onClick={() => handleDeleteMessage(msg)}
@@ -2292,8 +2647,8 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                             >
                               <Trash2 size={12} /> Delete
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         <div
                           style={{
@@ -2422,6 +2777,44 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                           </span>
                         )}
                       </div>
+
+                      {/* Reaction Pills & Pinned Indicator */}
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            marginTop: '3px',
+                          }}
+                        >
+                          <span
+                            style={{
+                              background: '#ffffff',
+                              border: '1.5px solid #cbd5e1',
+                              borderRadius: '12px',
+                              padding: '2px 8px',
+                              fontSize: '0.8rem',
+                              fontWeight: '700',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            {msg.reactions.map((r, i) => (
+                              <span key={i}>{r.emoji}</span>
+                            ))}
+                            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{msg.reactions.length}</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {msg.isPinned && (
+                        <div style={{ fontSize: '0.72rem', color: '#4f46e5', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                          <Pin size={10} style={{ transform: 'rotate(-45deg)', fill: '#4f46e5' }} /> Pinned Message
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -2606,15 +2999,111 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   </button>
                 </div>
 
-                <input
-                  ref={messageInputRef}
-                  type="text"
-                  className="form-input font-semibold"
-                  style={{ paddingLeft: '18px', flex: 1, height: '48px', fontSize: '0.98rem' }}
-                  placeholder={`Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
-                  value={newMessageText}
-                  onChange={(e) => setNewMessageText(e.target.value)}
-                />
+                {isRecordingAudio ? (
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: '16px', padding: '8px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444', fontWeight: '800', fontSize: '0.9rem' }}>
+                      <span className="record-dot"></span>
+                      <span>Recording... {Math.floor(audioRecordingTime / 60)}:{(audioRecordingTime % 60).toString().padStart(2, '0')}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button type="button" onClick={cancelAudioRecording} style={{ background: '#ffffff', border: '1px solid #fecaca', color: '#ef4444', borderRadius: '10px', padding: '6px 12px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                      <button type="button" onClick={stopAndSendAudioRecording} style={{ background: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '6px 14px', fontWeight: '800', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Send size={14} /> Send Voice
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={messageInputRef}
+                      type="text"
+                      className="form-input font-semibold"
+                      style={{ paddingLeft: '18px', flex: 1, height: '48px', fontSize: '0.98rem' }}
+                      placeholder={`Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
+                      value={newMessageText}
+                      onChange={handleMessageInputChange}
+                    />
+
+                    {/* Emoji Picker Popover Toggle */}
+                    <div style={{ position: 'relative' }}>
+                      {showEmojiPicker && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: '56px',
+                            right: '0',
+                            background: '#ffffff',
+                            border: '1.5px solid #e2e8f0',
+                            borderRadius: '16px',
+                            padding: '12px',
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(6, 1fr)',
+                            gap: '6px',
+                            zIndex: 100,
+                            width: '240px',
+                          }}
+                        >
+                          {['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '😍', '🥰', '😘', '😋', '😎', '👍', '👎', '🔥', '❤️', '🎉', '✨', '🙏', '💯', '🙌'].map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => {
+                                setNewMessageText((prev) => prev + emoji);
+                                setShowEmojiPicker(false);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '4px', borderRadius: '8px' }}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        title="Emoji Picker"
+                        style={{
+                          background: '#f1f5f9',
+                          border: 'none',
+                          borderRadius: '14px',
+                          width: '44px',
+                          height: '44px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: '#64748b',
+                        }}
+                      >
+                        <Smile size={20} />
+                      </button>
+                    </div>
+
+                    {/* Mic Button for Voice Note */}
+                    <button
+                      type="button"
+                      onClick={startAudioRecording}
+                      title="Record Voice Note"
+                      style={{
+                        background: '#ede9fe',
+                        border: 'none',
+                        borderRadius: '14px',
+                        width: '44px',
+                        height: '44px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        color: '#4f46e5',
+                      }}
+                    >
+                      <Mic size={20} />
+                    </button>
+                  </>
+                )}
                 <button
                   type="submit"
                   className="btn-primary font-extrabold"

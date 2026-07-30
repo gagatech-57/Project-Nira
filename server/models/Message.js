@@ -28,8 +28,16 @@ const messageSchema = new mongoose.Schema(
     // File attachment fields
     fileUrl: { type: String, default: null },
     fileName: { type: String, default: null },
-    fileType: { type: String, default: null },  // 'image', 'video', 'document', etc.
+    fileType: { type: String, default: null },  // 'image', 'video', 'document', 'audio', etc.
     fileSize: { type: Number, default: null },   // bytes
+    // Feature Upgrades
+    reactions: [
+      {
+        user: { type: String, required: true },
+        emoji: { type: String, required: true },
+      },
+    ],
+    isPinned: { type: Boolean, default: false },
   },
   {
     timestamps: true,
