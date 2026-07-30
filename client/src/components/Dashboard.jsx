@@ -236,7 +236,20 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
-  }, [selectedUser]);
+    if (socket && currentUserId) {
+      socket.emit('active_chat_changed', {
+        userId: currentUserId,
+        partnerId: selectedUser ? selectedUser._id : null,
+      });
+      if (selectedUser) {
+        socket.emit('mark_read_instant', {
+          readerId: currentUserId,
+          senderId: selectedUser._id,
+        });
+        markMessagesAsRead(currentUserId, selectedUser._id).catch(() => {});
+      }
+    }
+  }, [selectedUser, socket, currentUserId]);
 
   useEffect(() => {
     socketRef.current = socket;
@@ -348,22 +361,25 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
       const selUser = selectedUserRef.current;
       if (
         selUser &&
-        ((incomingMsg.sender === selUser._id && incomingMsg.receiver === currentUserId) ||
-          (incomingMsg.sender === currentUserId && incomingMsg.receiver === selUser._id))
+        ((String(incomingMsg.sender) === String(selUser._id) && String(incomingMsg.receiver) === String(currentUserId)) ||
+          (String(incomingMsg.sender) === String(currentUserId) && String(incomingMsg.receiver) === String(selUser._id)))
       ) {
         setMessages((prevMsgs) => upsertMessage(prevMsgs, incomingMsg));
 
-        if (incomingMsg.sender === selUser._id && newSocket) {
+        if (String(incomingMsg.sender) === String(selUser._id) && newSocket) {
           newSocket.emit('mark_read_instant', {
             readerId: currentUserId,
             senderId: selUser._id,
           });
+          setMessages((prevMsgs) =>
+            prevMsgs.map((m) => (String(m._id) === String(incomingMsg._id) ? { ...m, isRead: true } : m))
+          );
         }
 
         if (isUserAtBottomRef.current) {
           setTimeout(scrollToBottomInstant, 50);
         }
-      } else if (incomingMsg.sender && incomingMsg.sender !== currentUserId) {
+      } else if (incomingMsg.sender && String(incomingMsg.sender) !== String(currentUserId)) {
         // Increment unread red dot count for contacts not currently selected
         try {
           localStorage.removeItem(`cleared_unread_${currentUserId}_${incomingMsg.sender}`);
@@ -376,7 +392,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
     });
 
     newSocket.on('message_sent', (confirmedMsg) => {
-      const otherUser = confirmedMsg.sender === currentUserId ? confirmedMsg.receiver : confirmedMsg.sender;
+      const otherUser = String(confirmedMsg.sender) === String(currentUserId) ? confirmedMsg.receiver : confirmedMsg.sender;
 
       if (otherUser) {
         const msgTime = new Date(confirmedMsg.createdAt || Date.now()).getTime();
@@ -396,8 +412,8 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
       const selUser = selectedUserRef.current;
       if (
         selUser &&
-        ((confirmedMsg.sender === currentUserId && confirmedMsg.receiver === selUser._id) ||
-          (confirmedMsg.sender === selUser._id && confirmedMsg.receiver === selUser._id))
+        ((String(confirmedMsg.sender) === String(currentUserId) && String(confirmedMsg.receiver) === String(selUser._id)) ||
+          (String(confirmedMsg.sender) === String(selUser._id) && String(confirmedMsg.receiver) === String(selUser._id)))
       ) {
         setMessages((prevMsgs) => upsertMessage(prevMsgs, confirmedMsg));
 
@@ -409,9 +425,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
     newSocket.on('messages_read', ({ readerId }) => {
       const selUser = selectedUserRef.current;
-      if (selUser && selUser._id === readerId) {
+      if (selUser && String(selUser._id) === String(readerId)) {
         setMessages((prevMsgs) =>
-          prevMsgs.map((m) => (m.sender === currentUserId ? { ...m, isRead: true } : m))
+          prevMsgs.map((m) => (String(m.sender) === String(currentUserId) ? { ...m, isRead: true } : m))
         );
       }
     });
@@ -949,7 +965,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
       if (res) {
         // Replace temp message with real db message
         setMessages((prevMsgs) =>
-          prevMsgs.map((m) => (m._id === msgData._id ? { ...res, ...(fileData || {}) } : m))
+          prevMsgs.map((m) => (m._id === msgData._id ? { ...res, isRead: m.isRead || res.isRead, ...(fileData || {}) } : m))
         );
         // Refresh last message preview with saved database message
         setLastMessages((prev) => ({
