@@ -2871,8 +2871,8 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                     onClick={() => setShowAttachMenu(!showAttachMenu)}
                     title="Attach Photos, Videos or Files"
                     style={{
-                      width: '46px',
-                      height: '46px',
+                      width: isMobile ? '38px' : '46px',
+                      height: isMobile ? '38px' : '46px',
                       borderRadius: '14px',
                       border: 'none',
                       background: showAttachMenu
@@ -2891,7 +2891,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                       transform: showAttachMenu ? 'rotate(45deg)' : 'rotate(0deg)',
                     }}
                   >
-                    <Plus size={24} strokeWidth={2.8} />
+                    <Plus size={isMobile ? 20 : 24} strokeWidth={2.8} />
                   </button>
                 </div>
 
@@ -2899,7 +2899,14 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   ref={messageInputRef}
                   type="text"
                   className="form-input font-semibold"
-                  style={{ paddingLeft: '14px', paddingRight: '14px', flex: 1, height: '48px', fontSize: '0.95rem', minWidth: 0 }}
+                  style={{
+                    paddingLeft: '14px',
+                    paddingRight: '14px',
+                    flex: 1,
+                    height: isMobile ? '42px' : '48px',
+                    fontSize: '0.95rem',
+                    minWidth: 0,
+                  }}
                   placeholder={isMobile ? 'Type a message...' : `Type a message to @${(selectedUser.username || selectedUser.name).toLowerCase()}...`}
                   value={newMessageText}
                   onChange={handleMessageInputChange}
@@ -2908,17 +2915,22 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   type="submit"
                   className="btn-primary font-extrabold"
                   style={{
-                    width: 'auto',
-                    padding: isMobile ? '10px 16px' : '14px 28px',
+                    width: isMobile ? '44px' : 'auto',
+                    height: isMobile ? '42px' : 'auto',
+                    padding: isMobile ? '0' : '14px 28px',
                     marginTop: 0,
                     borderRadius: '14px',
-                    fontSize: isMobile ? '0.9rem' : '0.98rem',
+                    fontSize: '0.98rem',
                     flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                   disabled={isUploading || (!newMessageText.trim() && !selectedFile)}
+                  title={isMobile ? 'Send Message' : ''}
                 >
                 {/* Nira Chat N bubble icon */}
-                 <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', marginRight: '6px', flexShrink: 0 }}>
+                 <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', marginRight: isMobile ? '0' : '6px', flexShrink: 0 }}>
                    {/* Bubble body */}
                    <span style={{
                      display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -2937,7 +2949,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                      borderTop: '6px solid #ffffff',
                    }} />
                  </span>
-                 {isUploading ? 'Uploading...' : 'Send'}
+                 {!isMobile && (isUploading ? 'Uploading...' : 'Send')}
                 </button>
               </form>
             </div>
