@@ -1475,7 +1475,7 @@ export default function Dashboard({ user, onLogout }) {
           )}
         </div>
 
-        {/* BOTTOM SETTINGS & LOGOUT AREA (iOS Style) */}
+        {/* BOTTOM SETTINGS & LOGOUT AREA */}
         <div
           style={{
             padding: sidebarCollapsed ? '14px 8px' : '14px 16px',
@@ -1503,8 +1503,8 @@ export default function Dashboard({ user, onLogout }) {
                 : 'linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)',
               color: showSettingsPanel ? '#ffffff' : '#4f46e5',
               padding: sidebarCollapsed ? '0' : '10px 14px',
-              width: sidebarCollapsed ? '40px' : 'auto',
-              height: '40px',
+              width: sidebarCollapsed ? '42px' : 'auto',
+              height: '42px',
               borderRadius: '14px',
               fontWeight: '800',
               fontSize: '0.86rem',
@@ -1525,34 +1525,35 @@ export default function Dashboard({ user, onLogout }) {
             {!sidebarCollapsed && <span>Settings</span>}
           </button>
 
-          {/* Logout Button */}
-          <button
-            onClick={onLogout}
-            title="Sign Out"
-            style={{
-              border: '1.5px solid #fecaca',
-              background: '#fef2f2',
-              color: '#ef4444',
-              padding: sidebarCollapsed ? '0' : '10px 14px',
-              width: sidebarCollapsed ? '40px' : 'auto',
-              height: '40px',
-              borderRadius: '14px',
-              fontWeight: '800',
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              whiteSpace: 'nowrap',
-              flex: sidebarCollapsed ? 'none' : 1,
-              boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
-              transition: 'all 0.22s ease',
-            }}
-          >
-            <LogOut size={18} strokeWidth={2.5} />
-            {!sidebarCollapsed && <span>Logout</span>}
-          </button>
+          {/* Logout Button (HIDDEN WHEN COLLAPSED) */}
+          {!sidebarCollapsed && (
+            <button
+              onClick={onLogout}
+              title="Sign Out"
+              style={{
+                border: '1.5px solid #fecaca',
+                background: '#fef2f2',
+                color: '#ef4444',
+                padding: '10px 14px',
+                height: '42px',
+                borderRadius: '14px',
+                fontWeight: '800',
+                fontSize: '0.86rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                whiteSpace: 'nowrap',
+                flex: 1,
+                boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
+                transition: 'all 0.22s ease',
+              }}
+            >
+              <LogOut size={18} strokeWidth={2.5} />
+              <span>Logout</span>
+            </button>
+          )}
         </div>
       </div>
 
