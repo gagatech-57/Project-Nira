@@ -1030,7 +1030,7 @@ export default function Dashboard({ user, onLogout }) {
               transition: 'all 0.2s ease',
             }}
           >
-            <Sidebar size={20} />
+            {sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
         </div>
 
@@ -1475,10 +1475,10 @@ export default function Dashboard({ user, onLogout }) {
           )}
         </div>
 
-        {/* BOTTOM SETTINGS & LOGOUT AREA */}
+        {/* BOTTOM SETTINGS & LOGOUT AREA (iOS Style) */}
         <div
           style={{
-            padding: sidebarCollapsed ? '14px 6px' : '14px 18px',
+            padding: sidebarCollapsed ? '14px 8px' : '14px 16px',
             height: '72px',
             boxSizing: 'border-box',
             borderTop: '1px solid #e2e8f0',
@@ -1486,10 +1486,11 @@ export default function Dashboard({ user, onLogout }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-            gap: '10px',
+            gap: '8px',
             flexShrink: 0,
           }}
         >
+          {/* Settings Button */}
           <button
             onClick={() => {
               setShowSettingsPanel((prev) => !prev);
@@ -1501,10 +1502,12 @@ export default function Dashboard({ user, onLogout }) {
                 ? 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)'
                 : 'linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)',
               color: showSettingsPanel ? '#ffffff' : '#4f46e5',
-              padding: sidebarCollapsed ? '10px' : '10px 16px',
+              padding: sidebarCollapsed ? '0' : '10px 14px',
+              width: sidebarCollapsed ? '40px' : 'auto',
+              height: '40px',
               borderRadius: '14px',
               fontWeight: '800',
-              fontSize: '0.88rem',
+              fontSize: '0.86rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1519,9 +1522,10 @@ export default function Dashboard({ user, onLogout }) {
             }}
           >
             <MenuLinesIcon size={19} color={showSettingsPanel ? '#ffffff' : '#4f46e5'} />
-            {!sidebarCollapsed && 'Settings'}
+            {!sidebarCollapsed && <span>Settings</span>}
           </button>
 
+          {/* Logout Button */}
           <button
             onClick={onLogout}
             title="Sign Out"
@@ -1529,19 +1533,25 @@ export default function Dashboard({ user, onLogout }) {
               border: '1.5px solid #fecaca',
               background: '#fef2f2',
               color: '#ef4444',
-              width: '42px',
-              height: '42px',
+              padding: sidebarCollapsed ? '0' : '10px 14px',
+              width: sidebarCollapsed ? '40px' : 'auto',
+              height: '40px',
               borderRadius: '14px',
+              fontWeight: '800',
+              fontSize: '0.86rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              flexShrink: 0,
+              gap: '8px',
+              whiteSpace: 'nowrap',
+              flex: sidebarCollapsed ? 'none' : 1,
               boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
               transition: 'all 0.22s ease',
             }}
           >
-            <Power size={18} strokeWidth={2.5} />
+            <LogOut size={18} strokeWidth={2.5} />
+            {!sidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
       </div>
