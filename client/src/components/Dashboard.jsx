@@ -1483,27 +1483,71 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               })
             )
           ) : loadingUsers ? (
-            <div className="nira-loader-container">
-              <div className="nira-loader-rings">
-                <div className="nira-loader-ring-outer" />
-                <div className="nira-loader-ring-inner" />
-                <div className="nira-loader-center-dot" />
+            <div className="quantum-loader-wrapper">
+              {/* Quantum Radar Stage with Pulsing Signal Waves */}
+              <div className="quantum-radar-stage">
+                <div className="quantum-pulse-wave" />
+                <div className="quantum-pulse-wave-delayed" />
+                <div className="quantum-orb">
+                  <span
+                    style={{
+                      color: '#ffffff',
+                      fontSize: '1.25rem',
+                      fontFamily: "'Permanent Marker', cursive",
+                      lineHeight: 1,
+                      marginTop: '2px',
+                    }}
+                  >
+                    N
+                  </span>
+                </div>
               </div>
+
+              {/* Animated Audio/Signal Equalizer Waveform */}
+              <div className="quantum-equalizer">
+                <div className="quantum-bar" />
+                <div className="quantum-bar" />
+                <div className="quantum-bar" />
+                <div className="quantum-bar" />
+                <div className="quantum-bar" />
+              </div>
+
               {!sidebarCollapsed && (
-                <div style={{ textAlign: 'center' }}>
-                  <p className="font-extrabold" style={{ fontSize: '0.88rem', color: '#4f46e5', letterSpacing: '0.02em' }}>
-                    Loading users...
+                <div style={{ textAlign: 'center', marginTop: '2px' }}>
+                  <p
+                    className="font-extrabold"
+                    style={{
+                      fontSize: '0.92rem',
+                      background: 'linear-gradient(90deg, #4f46e5, #06b6d4)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      letterSpacing: '0.03em',
+                    }}
+                  >
+                    Syncing Nira Network...
                   </p>
-                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                    Fetching contacts & directory
+                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px', fontWeight: '600' }}>
+                    Finding active connected contacts
                   </p>
                 </div>
               )}
+
+              {/* Shimmer Skeleton Preview Directory Cards */}
               {!sidebarCollapsed && (
                 <div style={{ width: '100%', marginTop: '6px' }}>
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="skeleton-card">
-                      <div className="skeleton-box" style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0 }} />
+                    <div key={i} className="skeleton-card-quantum">
+                      <div
+                        className="skeleton-box"
+                        style={{
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '50%',
+                          flexShrink: 0,
+                          background: 'linear-gradient(90deg, #e2e8f0 25%, #ede9fe 50%, #e2e8f0 75%)',
+                          backgroundSize: '200% 100%',
+                        }}
+                      />
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <div className="skeleton-box" style={{ height: '14px', width: '65%', borderRadius: '6px' }} />
                         <div className="skeleton-box" style={{ height: '10px', width: '40%', borderRadius: '4px' }} />

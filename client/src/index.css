@@ -451,82 +451,102 @@ body {
   }
 }
 
-/* Modern High-End Orbital Loader Component */
-.nira-loader-container {
+/* Modern High-End Quantum Pulse & Waveform Loader Component */
+.quantum-loader-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
-  gap: 16px;
+  padding: 28px 16px;
+  gap: 14px;
   width: 100%;
 }
 
-.nira-loader-rings {
+.quantum-radar-stage {
   position: relative;
-  width: 54px;
-  height: 54px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.nira-loader-ring-outer {
+.quantum-pulse-wave {
   position: absolute;
-  inset: 0;
+  inset: -6px;
   border-radius: 50%;
-  border: 3px solid transparent;
-  border-top-color: #4f46e5;
-  border-right-color: #818cf8;
-  animation: spinSmooth 1.1s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
-  filter: drop-shadow(0 0 6px rgba(79, 70, 229, 0.4));
+  border: 2px solid rgba(79, 70, 229, 0.4);
+  animation: waveExpand 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
 }
 
-.nira-loader-ring-inner {
+.quantum-pulse-wave-delayed {
   position: absolute;
-  inset: 8px;
+  inset: -6px;
   border-radius: 50%;
-  border: 3px solid transparent;
-  border-bottom-color: #06b6d4;
-  border-left-color: #3b82f6;
-  animation: spinSmoothReverse 0.85s linear infinite;
-  filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.4));
+  border: 2px solid rgba(6, 182, 212, 0.4);
+  animation: waveExpand 1.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite 0.6s;
 }
 
-.nira-loader-center-dot {
-  width: 12px;
-  height: 12px;
+@keyframes waveExpand {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+.quantum-orb {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4f46e5, #06b6d4);
-  box-shadow: 0 0 14px rgba(79, 70, 229, 0.7);
-  animation: pulseCenter 1.1s ease-in-out infinite alternate;
+  background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(79, 70, 229, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.4);
+  position: relative;
+  z-index: 2;
+  animation: orbGlow 2s ease-in-out infinite alternate;
 }
 
-@keyframes spinSmooth {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+@keyframes orbGlow {
+  0% { transform: scale(0.95); box-shadow: 0 0 14px rgba(79, 70, 229, 0.4); }
+  100% { transform: scale(1.05); box-shadow: 0 0 28px rgba(6, 182, 212, 0.7); }
 }
 
-@keyframes spinSmoothReverse {
-  0% { transform: rotate(360deg); }
-  100% { transform: rotate(0deg); }
+.quantum-equalizer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  margin-top: 2px;
 }
 
-@keyframes pulseCenter {
-  0% { transform: scale(0.7); opacity: 0.5; }
-  100% { transform: scale(1.3); opacity: 1; }
+.quantum-bar {
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #4f46e5, #06b6d4);
+  animation: eqBounce 1.2s ease-in-out infinite alternate;
 }
 
-.skeleton-card {
+.quantum-bar:nth-child(1) { height: 14px; animation-delay: 0.1s; }
+.quantum-bar:nth-child(2) { height: 22px; animation-delay: 0.3s; }
+.quantum-bar:nth-child(3) { height: 10px; animation-delay: 0.5s; }
+.quantum-bar:nth-child(4) { height: 18px; animation-delay: 0.2s; }
+.quantum-bar:nth-child(5) { height: 12px; animation-delay: 0.4s; }
+
+@keyframes eqBounce {
+  0% { transform: scaleY(0.35); opacity: 0.4; }
+  100% { transform: scaleY(1.3); opacity: 1; filter: drop-shadow(0 0 4px #06b6d4); }
+}
+
+.skeleton-card-quantum {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: #ffffff;
-  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1.5px solid #eef2ff;
   margin-bottom: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.04);
 }
 
 /* Online pulse dot animation */
