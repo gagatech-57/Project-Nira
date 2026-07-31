@@ -1551,9 +1551,16 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   <div
                     key={u._id}
                     onClick={() => {
-                      setSelectedUser(u);
-                      setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
-                      setSearchQuery('');
+                      if (connStatus === 'connected' || u.username === 'nira') {
+                        setSelectedUser(u);
+                        setUnreadCounts((prev) => ({ ...prev, [u._id]: 0 }));
+                        setSearchQuery('');
+                      } else if (connStatus === 'none') {
+                        handleSendConnectionRequest(u);
+                      } else if (connStatus === 'pending_received') {
+                        setSidebarTab('requests');
+                        setSearchQuery('');
+                      }
                     }}
                     title={u.name}
                     style={{
@@ -1953,7 +1960,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             {/* Profile Grid Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '14px' : '20px' }}>
               {/* Card 1: Email Address */}
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'email' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+              <div style={{ background: '#ffffff', padding: isMobile ? '16px 18px' : '24px', borderRadius: '20px', border: editingCard === 'email' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Mail size={18} style={{ color: '#4f46e5' }} /> Email Address
@@ -1996,14 +2003,14 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                     </div>
                   </form>
                 ) : (
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                  <div style={{ fontSize: isMobile ? '0.96rem' : '1.1rem', fontWeight: '800', color: '#0f172a', wordBreak: 'break-all' }}>
                     {currentUserEmail}
                   </div>
                 )}
               </div>
 
               {/* Card 2: Gender */}
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'gender' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+              <div style={{ background: '#ffffff', padding: isMobile ? '16px 18px' : '24px', borderRadius: '20px', border: editingCard === 'gender' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <User size={18} style={{ color: '#4f46e5' }} /> Gender
@@ -2048,14 +2055,14 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                     </div>
                   </form>
                 ) : (
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                  <div style={{ fontSize: isMobile ? '0.96rem' : '1.1rem', fontWeight: '800', color: '#0f172a' }}>
                     {currentUserGender}
                   </div>
                 )}
               </div>
 
               {/* Card 3: Age */}
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'age' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+              <div style={{ background: '#ffffff', padding: isMobile ? '16px 18px' : '24px', borderRadius: '20px', border: editingCard === 'age' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Calendar size={18} style={{ color: '#4f46e5' }} /> Age
@@ -2099,14 +2106,14 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                     </div>
                   </form>
                 ) : (
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                  <div style={{ fontSize: isMobile ? '0.96rem' : '1.1rem', fontWeight: '800', color: '#0f172a' }}>
                     {currentUserAge} years old
                   </div>
                 )}
               </div>
 
               {/* Card 4: Mobile Number */}
-              <div style={{ background: '#ffffff', padding: '24px', borderRadius: '20px', border: editingCard === 'mobile' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+              <div style={{ background: '#ffffff', padding: isMobile ? '16px 18px' : '24px', borderRadius: '20px', border: editingCard === 'mobile' ? '2px solid #4f46e5' : '1.5px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Phone size={18} style={{ color: '#4f46e5' }} /> Mobile Number
@@ -2148,7 +2155,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                     </div>
                   </form>
                 ) : (
-                  <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
+                  <div style={{ fontSize: isMobile ? '0.96rem' : '1.1rem', fontWeight: '800', color: '#0f172a' }}>
                     {currentUserMobile}
                   </div>
                 )}
@@ -2158,21 +2165,23 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             {/* Danger Zone: Delete Account */}
             <div
               style={{
-                marginTop: '28px',
+                marginTop: '24px',
                 background: '#fff1f2',
-                padding: '24px',
+                padding: isMobile ? '18px 16px' : '24px',
                 borderRadius: '20px',
                 border: '1.5px solid #fecdd3',
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'stretch' : 'center',
                 justifyContent: 'space-between',
+                gap: isMobile ? '14px' : '20px',
               }}
             >
               <div>
-                <h4 className="font-extrabold" style={{ fontSize: '1.1rem', color: '#be123c', marginBottom: '4px' }}>
+                <h4 className="font-extrabold" style={{ fontSize: isMobile ? '0.98rem' : '1.1rem', color: '#be123c', marginBottom: '4px' }}>
                   Danger Zone: Delete Account
                 </h4>
-                <p style={{ fontSize: '0.86rem', color: '#9f1239', fontWeight: '600' }}>
+                <p style={{ fontSize: isMobile ? '0.8rem' : '0.86rem', color: '#9f1239', fontWeight: '600' }}>
                   Permanently delete your account profile and all data.
                 </p>
               </div>
@@ -2184,15 +2193,17 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                   color: '#ffffff',
                   border: 'none',
-                  padding: '10px 20px',
+                  padding: isMobile ? '10px 14px' : '10px 20px',
                   borderRadius: '14px',
                   fontWeight: '800',
-                  fontSize: '0.88rem',
+                  fontSize: isMobile ? '0.82rem' : '0.88rem',
                   cursor: 'pointer',
                   boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '8px',
+                  width: isMobile ? '100%' : 'auto',
                 }}
               >
                 <Trash2 size={16} /> Delete My Account
@@ -2206,13 +2217,13 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 onClick={onLogout}
                 style={{
                   width: '100%',
-                  padding: '14px 24px',
+                  padding: isMobile ? '12px 18px' : '14px 24px',
                   borderRadius: '16px',
                   border: '1.5px solid #fecaca',
                   background: '#fef2f2',
                   color: '#ef4444',
                   fontWeight: '800',
-                  fontSize: '0.95rem',
+                  fontSize: isMobile ? '0.86rem' : '0.95rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -2222,7 +2233,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <LogOut size={20} strokeWidth={2.5} />
+                <LogOut size={18} strokeWidth={2.5} />
                 <span>Log Out of Account</span>
               </button>
             </div>
