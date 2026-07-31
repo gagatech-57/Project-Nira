@@ -1191,11 +1191,11 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
         <div
           style={{
             padding: sidebarCollapsed
-              ? '16px 8px'
+              ? '18px 8px'
               : isMobile
-              ? 'calc(14px + env(safe-area-inset-top, 0px)) 18px 14px 18px'
-              : '18px 18px',
-            paddingTop: isMobile ? 'max(16px, calc(14px + env(safe-area-inset-top, 0px)))' : undefined,
+              ? 'calc(16px + env(safe-area-inset-top, 0px)) 18px 14px 18px'
+              : '22px 24px 18px 24px',
+            paddingTop: isMobile ? 'max(18px, calc(16px + env(safe-area-inset-top, 0px)))' : '22px',
             borderBottom: '1px solid #e2e8f0',
             background: '#ffffff',
             display: 'flex',
@@ -2295,9 +2295,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             <div
               style={{
                 padding: isMobile
-                  ? 'calc(10px + env(safe-area-inset-top, 0px)) 14px 12px 14px'
-                  : '18px 28px',
-                paddingTop: isMobile ? 'max(14px, calc(10px + env(safe-area-inset-top, 0px)))' : undefined,
+                  ? 'calc(14px + env(safe-area-inset-top, 0px)) 16px 14px 16px'
+                  : '22px 28px 18px 28px',
+                paddingTop: isMobile ? 'max(18px, calc(14px + env(safe-area-inset-top, 0px)))' : '22px',
                 borderBottom: '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
