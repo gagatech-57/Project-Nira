@@ -788,6 +788,11 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             u.username?.toLowerCase() !== currentUserHandle &&
             u.email?.toLowerCase() !== currentUserEmail.toLowerCase()
         );
+        const statusMap = {};
+        filtered.forEach((u) => {
+          statusMap[u._id] = 'connected';
+        });
+        setConnectionStatuses((prev) => ({ ...prev, ...statusMap }));
         setUsersList(filtered);
       } else {
         // Search View: Search all registered users
@@ -1588,7 +1593,9 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
                 const lastMsgPreview = typeof lastMsgData === 'object' ? lastMsgData.preview : (lastMsgData || '');
                 const lastMsgTime = typeof lastMsgData === 'object' ? lastMsgData.time : '';
                 const unreadCount = unreadCounts[u._id] || 0;
-                const connStatus = connectionStatuses[u._id] || (u.username === 'nira' ? 'connected' : 'none');
+                const connStatus = !searchQuery
+                  ? 'connected'
+                  : (connectionStatuses[u._id] || (u.username === 'nira' ? 'connected' : 'none'));
                 const isUserPinned = pinnedUserIds.includes(u._id);
 
                 return (
