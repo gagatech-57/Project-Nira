@@ -1156,7 +1156,8 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
     <div
       style={{
         width: '100vw',
-        height: '100vh',
+        height: isMobile ? '100dvh' : '100vh',
+        maxHeight: isMobile ? '100dvh' : '100vh',
         maxWidth: '100%',
         background: '#ffffff',
         display: 'grid',
@@ -1177,17 +1178,26 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
           display: isMobile && (selectedUser || showSettingsPanel) ? 'none' : 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          height: '100%',
+          maxHeight: isMobile ? '100dvh' : '100%',
         }}
       >
         {/* Top Header: Only Nira Chat branding */}
         <div
           style={{
-            padding: sidebarCollapsed ? '16px 8px' : '18px 18px',
+            padding: sidebarCollapsed
+              ? '16px 8px'
+              : isMobile
+              ? 'calc(14px + env(safe-area-inset-top, 0px)) 18px 14px 18px'
+              : '18px 18px',
+            paddingTop: isMobile ? 'max(16px, calc(14px + env(safe-area-inset-top, 0px)))' : undefined,
             borderBottom: '1px solid #e2e8f0',
             background: '#ffffff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+            flexShrink: 0,
+            zIndex: 10,
           }}
         >
           {!sidebarCollapsed && (
@@ -1276,7 +1286,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
         {/* User Search Input Box */}
         {!sidebarCollapsed && (
-          <div style={{ padding: '16px 18px' }}>
+          <div style={{ padding: '16px 18px', flexShrink: 0 }}>
             <label className="form-label font-extrabold" style={{ marginBottom: '8px', fontSize: '0.8rem' }}>
               <Search size={14} /> Search Users by @username
             </label>
@@ -1296,7 +1306,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
 
         {/* Sidebar Navigation Tabs (Chats vs Requests) */}
         {!sidebarCollapsed && !searchQuery && (
-          <div style={{ padding: '0 18px 12px 18px', display: 'flex', gap: '8px' }}>
+          <div style={{ padding: '0 18px 12px 18px', display: 'flex', gap: '8px', flexShrink: 0 }}>
             <button
               onClick={() => setSidebarTab('chats')}
               style={{
@@ -1473,9 +1483,35 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               })
             )
           ) : loadingUsers ? (
-            <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-              <div className="spinner" style={{ margin: '0 auto 8px auto', borderColor: '#4f46e5', borderTopColor: 'transparent' }}></div>
-              {!sidebarCollapsed && 'Loading users...'}
+            <div className="nira-loader-container">
+              <div className="nira-loader-rings">
+                <div className="nira-loader-ring-outer" />
+                <div className="nira-loader-ring-inner" />
+                <div className="nira-loader-center-dot" />
+              </div>
+              {!sidebarCollapsed && (
+                <div style={{ textAlign: 'center' }}>
+                  <p className="font-extrabold" style={{ fontSize: '0.88rem', color: '#4f46e5', letterSpacing: '0.02em' }}>
+                    Loading users...
+                  </p>
+                  <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                    Fetching contacts & directory
+                  </p>
+                </div>
+              )}
+              {!sidebarCollapsed && (
+                <div style={{ width: '100%', marginTop: '6px' }}>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="skeleton-card">
+                      <div className="skeleton-box" style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0 }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div className="skeleton-box" style={{ height: '14px', width: '65%', borderRadius: '6px' }} />
+                        <div className="skeleton-box" style={{ height: '10px', width: '40%', borderRadius: '4px' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : usersList.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '30px 16px', color: '#64748b' }}>
@@ -1736,7 +1772,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
         display: isMobile && !selectedUser && !showSettingsPanel ? 'none' : 'flex',
         flexDirection: 'column',
         background: '#ffffff',
-        height: isMobile ? 'calc(var(--vh, 1vh) * 100)' : '100%',
+        height: isMobile ? '100dvh' : '100%',
         width: '100%',
         minHeight: 0,
         overflow: 'hidden',
@@ -1756,7 +1792,7 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
               flexDirection: 'column',
               background: '#f8fafc',
               overflowY: 'auto',
-              padding: isMobile ? '20px 16px 20px 16px' : '36px 60px 36px 44px',
+              padding: isMobile ? 'calc(16px + env(safe-area-inset-top, 0px)) 16px 20px 16px' : '36px 60px 36px 44px',
             }}
           >
             {/* Clean Settings Header */}
@@ -2196,7 +2232,10 @@ export default function Dashboard({ user, onLogout, onUserUpdate }) {
             {/* Active Conversation Header - FIXED AT TOP OF FLEX CONTAINER */}
             <div
               style={{
-                padding: isMobile ? '12px 14px' : '18px 28px',
+                padding: isMobile
+                  ? 'calc(10px + env(safe-area-inset-top, 0px)) 14px 12px 14px'
+                  : '18px 28px',
+                paddingTop: isMobile ? 'max(14px, calc(10px + env(safe-area-inset-top, 0px)))' : undefined,
                 borderBottom: '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
